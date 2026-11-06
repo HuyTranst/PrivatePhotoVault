@@ -29,8 +29,11 @@ jobs:
           SWIFT_FILES=$(find PrivatePhotoVault -name "*.swift")
           echo "Compiling $(echo "$SWIFT_FILES" | wc -l) Swift source files..."
 
+          mkdir -p build_output
+
           swiftc -target arm64-apple-ios15.0 \
                  -sdk "$SDK_PATH" \
+                 -Xlinker -syslibroot -Xlinker "$SDK_PATH" \
                  -parse-as-library \
                  -O \
                  -framework Foundation \
@@ -44,12 +47,12 @@ jobs:
                  -framework CoreGraphics \
                  -framework Combine \
                  $SWIFT_FILES \
-                 -o PrivatePhotoVault 2>&1 | tee compile.log
+                 -o build_output/PrivatePhotoVault 2>&1 | tee compile.log
 
           SWIFTC_STATUS=${PIPESTATUS[0]}
           echo "Swiftc exit code: $SWIFTC_STATUS"
 
-          if [ $SWIFTC_STATUS -ne 0 ] || [ ! -f PrivatePhotoVault ]; then
+          if [ $SWIFTC_STATUS -ne 0 ] || [ ! -f build_output/PrivatePhotoVault ]; then
             while IFS= read -r line; do
               echo "::error::$line"
             done < <(grep -E "error:|warning:" compile.log | head -n 30)
@@ -60,7 +63,7 @@ jobs:
         run: |
           echo "=== Assembling App Bundle ==="
           mkdir -p Payload/PrivatePhotoVault.app
-          mv PrivatePhotoVault Payload/PrivatePhotoVault.app/
+          mv build_output/PrivatePhotoVault Payload/PrivatePhotoVault.app/PrivatePhotoVault
 
           # Info.plist
           if [ -f "PrivatePhotoVault/Resources/Info.plist" ]; then

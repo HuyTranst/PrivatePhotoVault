@@ -131,7 +131,7 @@ public final class PhotoStorageManager: ObservableObject {
             return cached
         }
         
-        return await Task.detached(priority: .userInteractive) {
+        return await Task.detached(priority: .userInitiated) {
             let fileURL = self.vaultDirectory.appendingPathComponent(photo.thumbnailFileName)
             guard let encryptedData = try? Data(contentsOf: fileURL) else { return nil }
             guard let decryptedData = try? CryptoEngine.shared.decrypt(combinedData: encryptedData) else { return nil }

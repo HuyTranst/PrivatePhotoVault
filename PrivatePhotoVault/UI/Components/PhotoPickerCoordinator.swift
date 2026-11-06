@@ -97,7 +97,11 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
         
         /// Hiển thị hộp thoại hỏi xóa ảnh gốc khỏi Thư viện ảnh iPhone chuẩn Apple
         private func promptDeleteOriginals(assetIds: [String]) {
-            guard let topVC = UIApplication.shared.windows.first?.rootViewController else { return }
+            let activeWindow = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }
+            guard let topVC = activeWindow?.rootViewController else { return }
             
             let alert = UIAlertController(
                 title: "Thư viện ảnh iPhone",
