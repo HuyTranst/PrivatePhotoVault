@@ -1,0 +1,11 @@
+name: Test macOS 13
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-13
+    steps:
+      - name: Run echo
+        run: echo "Hello from macOS 13"
