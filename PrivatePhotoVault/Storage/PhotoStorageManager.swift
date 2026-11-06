@@ -103,6 +103,13 @@ public final class PhotoStorageManager: ObservableObject {
             let encryptedFull = try CryptoEngine.shared.encrypt(data: fullData)
             try encryptedFull.write(to: fullFileURL, options: .atomic)
             
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục và có dung lượng > 0
+            guard self.fileManager.fileExists(atPath: fullFileURL.path),
+                  let attrs = try? self.fileManager.attributesOfItem(atPath: fullFileURL.path),
+                  let size = attrs[.size] as? Int64, size > 0 else {
+                throw NSError(domain: "PhotoStorageManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Ảnh không tồn tại trong kho lưu trữ sau khi ghi."])
+            }
+            
             let photo = EncryptedPhoto(
                 id: id,
                 mediaType: .photo,
@@ -123,6 +130,82 @@ public final class PhotoStorageManager: ObservableObject {
             await MainActor.run {
                 self.photos.insert(photo, at: 0)
                 self.saveMetadata()
+                self.objectWillChange.send()
+                AlbumManager.shared.objectWillChange.send()
+            }
+            
+            return photo
+        }.value
+    }
+    
+    /// Mã hóa và lưu trực tiếp Data ảnh gốc (giữ nguyên 100% định dạng HEIC/PNG/JPEG, EXIF và tối ưu RAM)
+    public func importAndEncryptPhotoData(
+        data: Data,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        return try await Task.detached(priority: .userInitiated) {
+            let id = UUID()
+            let fullEncFileName = "\(id.uuidString).enc"
+            let thumbEncFileName = "\(id.uuidString)_thumb.enc"
+            
+            let fullFileURL = self.vaultDirectory.appendingPathComponent(fullEncFileName)
+            let thumbFileURL = self.vaultDirectory.appendingPathComponent(thumbEncFileName)
+            
+            // 1. Mã hóa dữ liệu ảnh gốc bằng AES-256-GCM
+            let encryptedFull = try CryptoEngine.shared.encrypt(data: data)
+            try encryptedFull.write(to: fullFileURL, options: .atomic)
+            
+            // 2. Tạo Thumbnail từ ảnh gốc
+            var imageWidth: CGFloat = 1920
+            var imageHeight: CGFloat = 1080
+            var thumbData: Data? = nil
+            
+            if let uiImage = UIImage(data: data) {
+                imageWidth = uiImage.size.width
+                imageHeight = uiImage.size.height
+                let thumbSize = self.calculateThumbnailSize(originalSize: uiImage.size, maxDimension: 400)
+                let thumbnailImage = self.resizeImage(image: uiImage, targetSize: thumbSize)
+                thumbData = thumbnailImage.jpegData(compressionQuality: 0.75)
+                VaultCacheManager.shared.setThumbnail(thumbnailImage, for: id.uuidString)
+            }
+            
+            if let tData = thumbData {
+                let encryptedThumb = try CryptoEngine.shared.encrypt(data: tData)
+                try encryptedThumb.write(to: thumbFileURL, options: .atomic)
+            } else {
+                try? encryptedFull.write(to: thumbFileURL, options: .atomic)
+            }
+            
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục và có dung lượng > 0
+            guard self.fileManager.fileExists(atPath: fullFileURL.path),
+                  let attrs = try? self.fileManager.attributesOfItem(atPath: fullFileURL.path),
+                  let size = attrs[.size] as? Int64, size > 0 else {
+                throw NSError(domain: "PhotoStorageManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Ảnh không tồn tại trong kho lưu trữ sau khi ghi."])
+            }
+            
+            let photo = EncryptedPhoto(
+                id: id,
+                mediaType: .photo,
+                encryptedFileName: fullEncFileName,
+                thumbnailFileName: thumbEncFileName,
+                originalFileName: originalFileName ?? "IMG_\(id.uuidString.prefix(6)).jpg",
+                duration: nil,
+                createdAt: Date(),
+                originalWidth: imageWidth,
+                originalHeight: imageHeight,
+                fileSizeBytes: Int64(encryptedFull.count),
+                albumIds: [albumId],
+                isTrash: false,
+                deletedAt: nil,
+                isFavorite: false
+            )
+            
+            await MainActor.run {
+                self.photos.insert(photo, at: 0)
+                self.saveMetadata()
+                self.objectWillChange.send()
+                AlbumManager.shared.objectWillChange.send()
             }
             
             return photo
@@ -178,6 +261,13 @@ public final class PhotoStorageManager: ObservableObject {
             
             let videoSize = (try? destVideoURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File video đã thực sự ghi thành công vào thư mục và có dung lượng > 0
+            guard self.fileManager.fileExists(atPath: destVideoURL.path),
+                  let attrs = try? self.fileManager.attributesOfItem(atPath: destVideoURL.path),
+                  let size = attrs[.size] as? Int64, size > 0 else {
+                throw NSError(domain: "PhotoStorageManager", code: 501, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Video không tồn tại trong kho lưu trữ sau khi ghi."])
+            }
+            
             let item = EncryptedPhoto(
                 id: id,
                 mediaType: .video,
@@ -198,10 +288,20 @@ public final class PhotoStorageManager: ObservableObject {
             await MainActor.run {
                 self.photos.insert(item, at: 0)
                 self.saveMetadata()
+                self.objectWillChange.send()
+                AlbumManager.shared.objectWillChange.send()
             }
             
             return item
         }.value
+    }
+    
+    /// Xác thực vật lý một tệp ảnh/video đã tồn tại thực sự trên ổ đĩa trong kho Vault
+    public func isMediaPhysicallyOnDisk(_ photo: EncryptedPhoto) -> Bool {
+        let fileURL = vaultDirectory.appendingPathComponent(photo.encryptedFileName)
+        guard fileManager.fileExists(atPath: fileURL.path) else { return false }
+        let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.fileSize] as? Int64) ?? 0
+        return size > 0
     }
     
     /// Nhập video từ Data bộ nhớ (khi restore từ ZIP)

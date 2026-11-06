@@ -11,6 +11,11 @@ public struct MainAlbumsView: View {
     @State private var isSettingsPresented: Bool = false
     @State private var activeAlbumForDetail: Album? = nil
     
+    // Quản lý trạng thái nhập ảnh & xác thực trước khi hỏi xóa ảnh gốc
+    @State private var importedSuccessCount: Int = 0
+    @State private var verifiedDeleteAssetIds: [String] = []
+    @State private var isDeleteOriginalPromptPresented: Bool = false
+    
     // Bố cục lưới 2 cột đáp ứng kích thước mọi dòng iPhone
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -86,13 +91,31 @@ public struct MainAlbumsView: View {
                 PhotoPickerCoordinator(
                     isPresented: $isPhotoPickerPresented,
                     targetAlbumId: targetId,
-                    onImportCompleted: { count in
-                        print("Đã nhập thành công \(count) ảnh vào album.")
+                    onImportCompleted: { count, verifiedAssetIds in
+                        if count > 0 {
+                            self.importedSuccessCount = count
+                            self.verifiedDeleteAssetIds = verifiedAssetIds
+                            // CHỈ hiển thị thông báo hỏi xóa gốc khi ĐÃ KIỂM TRA THỰC SỰ có ảnh lưu trong thư mục
+                            if !verifiedAssetIds.isEmpty {
+                                self.isDeleteOriginalPromptPresented = true
+                            }
+                        }
                     }
                 )
             }
             .sheet(isPresented: $isSettingsPresented) {
                 SettingsView(isPresented: $isSettingsPresented)
+            }
+            .alert("Đã Lưu An Toàn Vào Kho Riêng Tư", isPresented: $isDeleteOriginalPromptPresented) {
+                Button("Xóa Ảnh/Video Gốc Khỏi Máy", role: .destructive) {
+                    PhotoPickerCoordinator.deleteAssetsFromSystemLibrary(assetIds: verifiedDeleteAssetIds)
+                    verifiedDeleteAssetIds.removeAll()
+                }
+                Button("Giữ Lại Trên iPhone", role: .cancel) {
+                    verifiedDeleteAssetIds.removeAll()
+                }
+            } message: {
+                Text("Đã mã hóa và lưu trữ an toàn \(importedSuccessCount) mục vào kho riêng tư.\n\nBạn có muốn xóa các ảnh & video gốc khỏi Thư viện ảnh iPhone để tránh lộ dữ liệu và giải phóng bộ nhớ không?")
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -137,12 +160,15 @@ struct AlbumCardView: View {
                 .foregroundColor(.primary)
                 .lineLimit(1)
             
-            // Số lượng ảnh trong Album
+            // Số lượng ảnh trong Album (tự động cập nhật tức thì)
             Text("\(albumManager.photoCount(for: album.id)) ảnh")
                 .font(.system(size: 13, weight: .regular))
                 .foregroundColor(.secondary)
         }
         .onAppear {
+            loadCoverImage()
+        }
+        .onReceive(photoStorage.$photos) { _ in
             loadCoverImage()
         }
     }
@@ -155,6 +181,8 @@ struct AlbumCardView: View {
                     self.coverImage = img
                 }
             }
+        } else {
+            self.coverImage = nil
         }
     }
 }

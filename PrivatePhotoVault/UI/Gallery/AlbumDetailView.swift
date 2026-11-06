@@ -34,6 +34,12 @@ public struct AlbumDetailView: View {
     @State private var isPostExportDeletePromptPresented: Bool = false
     @State private var exportedItemsForCleanup: [EncryptedPhoto] = []
     
+    // Thêm ảnh vào album & xác thực trước khi hỏi xóa gốc
+    @State private var isPhotoPickerPresented: Bool = false
+    @State private var importedSuccessCount: Int = 0
+    @State private var verifiedDeleteAssetIds: [String] = []
+    @State private var isDeleteOriginalPromptPresented: Bool = false
+    
     @State private var alertTitle: String = ""
     @State private var alertMessage: String = ""
     @State private var isGeneralAlertPresented: Bool = false
@@ -49,7 +55,7 @@ public struct AlbumDetailView: View {
     }
     
     private var albumPhotos: [EncryptedPhoto] {
-        return albumManager.photos(in: album.id)
+        return photoStorage.photos.filter { !$0.isTrash && $0.albumIds.contains(album.id) }
     }
     
     private var selectedPhotos: [EncryptedPhoto] {
@@ -121,11 +127,23 @@ public struct AlbumDetailView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                         
-                        Text("Nhấn nút 'Add Picture' (+) ở thanh điều hướng để thêm ảnh hoặc video vào album này.")
+                        Text("Nhấn nút bên dưới để chọn và mã hóa ảnh hoặc video vào album này.")
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
+                        
+                        Button(action: { isPhotoPickerPresented = true }) {
+                            Label("Thêm Ảnh & Video", systemImage: "plus.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(Color.blue)
+                                .cornerRadius(25)
+                                .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                        }
+                        .padding(.top, 8)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -261,6 +279,14 @@ public struct AlbumDetailView: View {
             
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
+                    if !isSelectionMode {
+                        Button(action: { isPhotoPickerPresented = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    
                     if !albumPhotos.isEmpty {
                         Button(isSelectionMode ? "Xong" : "Chọn") {
                             withAnimation {
@@ -345,6 +371,33 @@ public struct AlbumDetailView: View {
                     isDocumentImporterPresented = false
                 }
             )
+        }
+        .sheet(isPresented: $isPhotoPickerPresented) {
+            PhotoPickerCoordinator(
+                isPresented: $isPhotoPickerPresented,
+                targetAlbumId: album.id,
+                onImportCompleted: { count, verifiedAssetIds in
+                    if count > 0 {
+                        self.importedSuccessCount = count
+                        self.verifiedDeleteAssetIds = verifiedAssetIds
+                        // CHỈ hiển thị thông báo hỏi xóa gốc khi ĐÃ KIỂM TRA THỰC SỰ có ảnh lưu trong thư mục
+                        if !verifiedAssetIds.isEmpty {
+                            self.isDeleteOriginalPromptPresented = true
+                        }
+                    }
+                }
+            )
+        }
+        .alert("Đã Lưu An Toàn Vào Kho Riêng Tư", isPresented: $isDeleteOriginalPromptPresented) {
+            Button("Xóa Ảnh/Video Gốc Khỏi Máy", role: .destructive) {
+                PhotoPickerCoordinator.deleteAssetsFromSystemLibrary(assetIds: verifiedDeleteAssetIds)
+                verifiedDeleteAssetIds.removeAll()
+            }
+            Button("Giữ Lại Trên iPhone", role: .cancel) {
+                verifiedDeleteAssetIds.removeAll()
+            }
+        } message: {
+            Text("Đã mã hóa và lưu trữ an toàn \(importedSuccessCount) mục vào album '\(album.name)'.\n\nBạn có muốn xóa các ảnh & video gốc khỏi Thư viện ảnh iPhone để tránh lộ dữ liệu và giải phóng dung lượng không?")
         }
         .alert("Đặt Tên File ZIP", isPresented: $isZipNamePromptPresented) {
             TextField("Tên file sao lưu", text: $customZipName)

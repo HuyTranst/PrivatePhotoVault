@@ -1,10 +1,12 @@
 import Foundation
+import Combine
 
 /// Quản lý danh sách album, liên kết ảnh và phân loại thư mục
 public final class AlbumManager: ObservableObject {
     public static let shared = AlbumManager()
     
     @Published public var albums: [Album] = []
+    private var cancellables = Set<AnyCancellable>()
     
     private let fileManager = FileManager.default
     private let albumsFileName = "vault_albums_meta.json"
@@ -17,6 +19,16 @@ public final class AlbumManager: ObservableObject {
     
     private init() {
         loadAlbums()
+        setupPhotoObserver()
+    }
+    
+    private func setupPhotoObserver() {
+        PhotoStorageManager.shared.$photos
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Persistence & Initial Seed

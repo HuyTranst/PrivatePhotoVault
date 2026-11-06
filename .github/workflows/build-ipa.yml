@@ -86,11 +86,10 @@ jobs:
             cp "PrivatePhotoVault/Resources/001.png" Payload/PrivatePhotoVault.app/
           fi
 
-          for icon in AppIcon.png AppIcon60x60@2x.png AppIcon60x60@3x.png AppIcon76x76@2x.png AppIcon29x29@3x.png AppIcon40x40@3x.png; do
-            if [ -f "PrivatePhotoVault/Resources/$icon" ]; then
-              cp "PrivatePhotoVault/Resources/$icon" Payload/PrivatePhotoVault.app/
-            fi
-          done
+          cp PrivatePhotoVault/Resources/AppIcon*.png Payload/PrivatePhotoVault.app/ 2>/dev/null || true
+          cp -f PrivatePhotoVault/Resources/AppIcon60x60@2x.png Payload/PrivatePhotoVault.app/AppIcon60x60.png 2>/dev/null || true
+          cp -f PrivatePhotoVault/Resources/AppIcon76x76@2x.png Payload/PrivatePhotoVault.app/AppIcon76x76.png 2>/dev/null || true
+          cp -f PrivatePhotoVault/Resources/AppIcon.png Payload/PrivatePhotoVault.app/AppIcon.png 2>/dev/null || true
 
           # Compile Assets Catalog
           if [ -d "PrivatePhotoVault/Resources/Assets.xcassets" ]; then
@@ -98,6 +97,7 @@ jobs:
                    --notices --warnings \
                    --platform iphoneos \
                    --target-device iphone \
+                   --target-device ipad \
                    --minimum-deployment-target 15.0 \
                    --app-icon AppIcon \
                    --compile Payload/PrivatePhotoVault.app \
@@ -126,20 +126,20 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: "v1.1.0"
-          name: "Private Photo Vault iOS (TrollStore Edition) v1.1.0"
+          tag_name: "v1.2.0"
+          name: "Private Photo Vault iOS (TrollStore Edition) v1.2.0"
           body: |
-            🔒 **Bản IPA Cài Đặt Chính Thức Qua TrollStore Cho iPhone (Không Cần Bật Developer Mode)**
+            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Sửa Lỗi Toàn Diện v1.2.0)**
             
-            ✨ **Cập nhật tính năng v1.1.0 (Export, Save to Photos & ZIP Backup):**
-            - 🛡️ **Bỏ cờ Developer Mode**: Cấu hình `get-task-allow = false` chuẩn TrollStore, cài đặt là mở được ngay lập tức, không bao giờ yêu cầu bật Nhà phát triển.
-            - 💾 **Lưu ảnh & video về Photos**: Xuất trực tiếp từng ảnh/video hoặc hàng loạt về Thư viện ảnh iOS Photos native, giữ nguyên 100% chất lượng gốc.
-            - 📦 **Nén ZIP chọn lọc & toàn bộ Album**: Nén hàng loạt ảnh + video có kèm file `manifest.json` chuẩn cấu trúc `Album/Photos/` và `Album/Videos/`.
-            - 📂 **Lưu vào ứng dụng Tệp (Files)**: Mở Document Picker native lưu file ZIP vào "On My iPhone" hoặc "iCloud Drive".
-            - 🔄 **Khôi phục từ file ZIP**: Nhập và tự động giải nén, mã hóa AES-256 đưa vào Album bất kỳ.
-            - ⏱️ **Hỗ trợ đầy đủ Video**: Xem video toàn màn hình native, hiển thị thời lượng mm:ss trên thumbnail.
+            ✨ **Cập nhật & Khắc phục quan trọng v1.2.0:**
+            - 🎨 **Hiển thị đầy đủ App Icon**: Đã cấu hình chuẩn `CFBundleIcons` và `CFBundleIconFiles` trong `Info.plist`, kèm assets catalog cho Springboard giúp icon hiển thị sắc nét trên màn hình chính qua TrollStore.
+            - 🔔 **Ngụy trang VCB Digibank (Nhấp 10 lần)**: Biểu tượng Thông báo (chuông vàng + 9+) yêu cầu người dùng nhấp đủ **10 lần liên tiếp** mới mở hộp thoại nhập mật khẩu (`36@Hamnghi`). Nhấp ra ngoài hoặc nhấp ít hơn 10 lần sẽ không bao giờ kích hoạt.
+            - 📥 **Sửa lỗi chép ảnh & video**: Đổi mới cơ chế nạp file nhị phân (hỗ trợ đầy đủ HEIC, RAW, PNG, JPEG, MP4, MOV) giúp việc nhập ảnh diễn ra ngay lập tức và mượt mà.
+            - 🛡️ **Kiểm tra vật lý an toàn trước khi hỏi xóa**: Ứng dụng thực hiện kiểm tra `fileExists` và `fileSizeBytes > 0` trong kho lưu trữ riêng tư. **Chỉ khi tệp ảnh/video đã thực sự được ghi thành công vào bộ nhớ máy thì mới hiện thông báo hỏi xóa file gốc khỏi iPhone**, tuyệt đối bảo vệ an toàn 100% cho dữ liệu của bạn, không bao giờ bị mất ảnh gốc!
+            - ➕ **Thêm nút (+) ngay trong từng Album**: Giờ đây bạn có thể thêm ảnh/video trực tiếp từ bên trong Album bất kỳ hoặc từ trang chi tiết album đang trống.
+            - ⚡ **Cập nhật giao diện thời gian thực**: Số lượng ảnh và ảnh bìa Album cập nhật ngay lập tức sau khi thêm ảnh.
             
-            📲 **Cài đặt cực nhanh**: Mở file `PrivatePhotoVault.ipa` bằng ứng dụng **TrollStore** trên iPhone để cài đặt ngay lập tức!
+            📲 **Cài đặt cực nhanh**: Tải file `PrivatePhotoVault.ipa` bên dưới và chia sẻ/mở bằng ứng dụng **TrollStore** trên iPhone để cài đặt dùng ngay!
           files: PrivatePhotoVault.ipa
           draft: false
           prerelease: false
