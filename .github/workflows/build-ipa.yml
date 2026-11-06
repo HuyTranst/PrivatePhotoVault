@@ -10,16 +10,16 @@ permissions:
 
 jobs:
   build:
-    name: Build & Release IPA
+    name: Build & Release TrollStore IPA
     runs-on: macos-14
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15 / 16
+      - name: Select Xcode Version
         run: |
-          sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
-          xcodebuild -version
+          sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app || true
+          xcodebuild -version || true
 
       - name: Compile Swift directly to iOS ARM64 Binary
         run: |
@@ -42,6 +42,8 @@ jobs:
                  -framework LocalAuthentication \
                  -framework CryptoKit \
                  -framework Security \
+                 -framework CoreGraphics \
+                 -framework Combine \
                  $SWIFT_FILES \
                  -o PrivatePhotoVault 2>&1 | tee compile.log
 
@@ -107,13 +109,13 @@ jobs:
             ldid -SPayload/PrivatePhotoVault.app/entitlements.plist Payload/PrivatePhotoVault.app/PrivatePhotoVault || true
           fi
 
-          zip -r -9 PrivatePhotoVault-Real.ipa Payload
+          zip -r -9 PrivatePhotoVault.ipa Payload
 
       - name: Upload Compiled IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PrivatePhotoVault-Real-IPA
-          path: PrivatePhotoVault-Real.ipa
+          name: PrivatePhotoVault-IPA
+          path: PrivatePhotoVault.ipa
 
       - name: Create or Update GitHub Release for High-Speed Download
         uses: softprops/action-gh-release@v2
@@ -130,8 +132,8 @@ jobs:
             - 🖼️ **Kho Ảnh & Album Mượt Mà**: Lưới 2 cột Album (theo mẫu `xemanh.jpg`), phóng to thu nhỏ mượt mà chuẩn Apple Photos.
             - ⚙️ **Trung Tâm Cài Đặt Đầy Đủ**: Tái hiện chuẩn xác 100% theo mẫu `cauhinh.jpg` với tính năng thực tế.
             
-            📲 **Cài đặt cực nhanh**: Mở file `PrivatePhotoVault-Real.ipa` bằng ứng dụng **TrollStore** trên iPhone để cài đặt ngay lập tức!
-          files: PrivatePhotoVault-Real.ipa
+            📲 **Cài đặt cực nhanh**: Mở file `PrivatePhotoVault.ipa` bằng ứng dụng **TrollStore** trên iPhone để cài đặt ngay lập tức!
+          files: PrivatePhotoVault.ipa
           draft: false
           prerelease: false
         env:
