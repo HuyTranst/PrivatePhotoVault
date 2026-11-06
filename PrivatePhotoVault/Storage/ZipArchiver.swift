@@ -198,7 +198,7 @@ public final class ZipArchiver {
             
             let compressionMethod = fileData.readUInt16(at: currentCDPos + 10)
             let compressedSize = Int(fileData.readUInt32(at: currentCDPos + 20))
-            let uncompressedSize = Int(fileData.readUInt32(at: currentCDPos + 24))
+            _ = Int(fileData.readUInt32(at: currentCDPos + 24))
             let nameLength = Int(fileData.readUInt16(at: currentCDPos + 28))
             let extraLength = Int(fileData.readUInt16(at: currentCDPos + 30))
             let commentLength = Int(fileData.readUInt16(at: currentCDPos + 32))
@@ -219,8 +219,8 @@ public final class ZipArchiver {
             if compressionMethod == 0 { // Store
                 extractedEntries.append(ZipEntry(relativePath: fileName, data: rawData))
             } else {
-                // Nếu nén Deflate, giải nén dữ liệu
-                if let decompressed = (rawData as NSData).decompressed(using: .zlib) as Data? {
+                // Nếu nén Deflate, giải nén dữ liệu bằng NSData.decompressed
+                if let decompressed = try? (rawData as NSData).decompressed(using: .zlib) as Data {
                     extractedEntries.append(ZipEntry(relativePath: fileName, data: decompressed))
                 } else {
                     extractedEntries.append(ZipEntry(relativePath: fileName, data: rawData))
@@ -239,12 +239,12 @@ public final class ZipArchiver {
 private extension Data {
     mutating func appendUInt16(_ value: UInt16) {
         var v = value.littleEndian
-        append(UnsafeBufferPointer(start: &v, count: 1))
+        Swift.withUnsafeBytes(of: &v) { append(contentsOf: $0) }
     }
     
     mutating func appendUInt32(_ value: UInt32) {
         var v = value.littleEndian
-        append(UnsafeBufferPointer(start: &v, count: 1))
+        Swift.withUnsafeBytes(of: &v) { append(contentsOf: $0) }
     }
     
     func readUInt16(at offset: Int) -> UInt16 {
