@@ -300,7 +300,7 @@ public final class PhotoStorageManager: ObservableObject {
     public func isMediaPhysicallyOnDisk(_ photo: EncryptedPhoto) -> Bool {
         let fileURL = vaultDirectory.appendingPathComponent(photo.encryptedFileName)
         guard fileManager.fileExists(atPath: fileURL.path) else { return false }
-        let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.fileSize] as? Int64) ?? 0
+        let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
         return size > 0
     }
     
