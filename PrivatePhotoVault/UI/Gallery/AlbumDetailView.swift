@@ -373,7 +373,7 @@ public struct AlbumDetailView: View {
             )
         }
         .sheet(isPresented: $isPhotoPickerPresented) {
-            PhotoPickerCoordinator(
+            NativePhotoPickerView(
                 isPresented: $isPhotoPickerPresented,
                 targetAlbumId: album.id,
                 onImportCompleted: { count, verifiedAssetIds in
@@ -390,7 +390,7 @@ public struct AlbumDetailView: View {
         }
         .alert("Đã Lưu An Toàn Vào Kho Riêng Tư", isPresented: $isDeleteOriginalPromptPresented) {
             Button("Xóa Ảnh/Video Gốc Khỏi Máy", role: .destructive) {
-                PhotoPickerCoordinator.deleteAssetsFromSystemLibrary(assetIds: verifiedDeleteAssetIds)
+                NativePhotoPickerView.deleteAssetsFromSystemLibrary(assetIds: verifiedDeleteAssetIds)
                 verifiedDeleteAssetIds.removeAll()
             }
             Button("Giữ Lại Trên iPhone", role: .cancel) {
