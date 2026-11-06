@@ -273,14 +273,14 @@ public struct NativePhotoPickerView: View {
                 
                 // 1. Nhập Video đa tầng (AVURLAsset -> Export Passthrough -> PHAssetResource)
                 if asset.mediaType == .video {
-                    if let savedItem = await self.extractAndSaveVideo(asset: asset, albumIds: targetAlbumIds) {
+                    if (await self.extractAndSaveVideo(asset: asset, albumIds: targetAlbumIds)) != nil {
                         importedCount += 1
                         verifiedAssetIds.append(asset.localIdentifier)
                     }
                 }
                 // 2. Nhập Ảnh đa tầng (Raw Data HEIC/PNG/JPG -> UIImage -> PHAssetResource)
                 else {
-                    if let savedItem = await self.extractAndSavePhoto(asset: asset, albumIds: targetAlbumIds) {
+                    if (await self.extractAndSavePhoto(asset: asset, albumIds: targetAlbumIds)) != nil {
                         importedCount += 1
                         verifiedAssetIds.append(asset.localIdentifier)
                     }
@@ -533,6 +533,26 @@ public struct NativePhotoPickerView: View {
                         hasResumed = true
                         continuation.resume(returning: session.status == .completed)
                     }
+                }
+            }
+        }
+    }
+    
+    private func writeAssetResource(_ resource: PHAssetResource, to destinationURL: URL) async -> Bool {
+        return await withCheckedContinuation { continuation in
+            let options = PHAssetResourceRequestOptions()
+            options.isNetworkAccessAllowed = true
+            
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try? FileManager.default.removeItem(at: destinationURL)
+            }
+            
+            PHAssetResourceManager.default().writeData(for: resource, toFile: destinationURL, options: options) { error in
+                if let error = error {
+                    print("Lỗi trích xuất resource \(resource.originalFilename): \(error.localizedDescription)")
+                    continuation.resume(returning: false)
+                } else {
+                    continuation.resume(returning: true)
                 }
             }
         }
