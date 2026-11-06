@@ -61,10 +61,7 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                 return
             }
             
-            // QUAN TRỌNG: TUYỆT ĐỐI KHÔNG dismiss picker ngay tại đây!
-            // Khi PHPicker bị đóng, hệ thống iOS sẽ lập tức ngắt kết nối XPC tới tiến trình Photos daemon.
-            // Nếu ngắt kết nối trong khi Task đang đọc ảnh, ứng dụng sẽ bị crash ngay lập tức (văng app).
-            // Do đó: Giữ nguyên picker trên màn hình, đọc toàn bộ tệp xong xuôi rồi mới đóng picker!
+            // Giữ picker trên màn hình trong khi đọc tệp để bảo toàn kết nối XPC với hệ thống
             Task {
                 var importedCount = 0
                 var verifiedSavedAssetIds: [String] = []
@@ -72,10 +69,15 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                 for result in results {
                     let assetId = result.assetIdentifier
                     let provider = result.itemProvider
+                    let registeredTypes = provider.registeredTypeIdentifiers
                     
-                    // 1. Xử lý Video
-                    if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) ||
-                       provider.hasItemConformingToTypeIdentifier("public.movie") {
+                    // 1. Kiểm tra nếu là Video
+                    let isVideo = registeredTypes.contains(where: { type in
+                        if let ut = UTType(type) { return ut.conforms(to: .movie) }
+                        return type.contains("movie") || type.contains("video") || type.contains("mp4") || type.contains("quicktime")
+                    })
+                    
+                    if isVideo {
                         if let videoURL = await self.loadVideoFile(from: provider) {
                             do {
                                 let importedItem = try await PhotoStorageManager.shared.importVideo(
@@ -85,7 +87,6 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                                 )
                                 try? FileManager.default.removeItem(at: videoURL)
                                 
-                                // Kiểm tra vật lý tệp đã tồn tại trên đĩa chưa
                                 if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(importedItem) {
                                     importedCount += 1
                                     if let id = assetId {
@@ -97,25 +98,61 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                             }
                         }
                     }
-                    // 2. Xử lý Ảnh (chuẩn Apple chính thức an toàn tuyệt đối 100%)
+                    // 2. Xử lý Ảnh (Đa tầng: Hỗ trợ 100% HEIC, JPEG, PNG, RAW, v.v.)
                     else {
-                        if let image = await self.loadImage(from: provider) {
+                        var savedPhoto: EncryptedPhoto? = nil
+                        
+                        // Tầng 1: Nạp raw Data trực tiếp theo đúng Type Identifier đã đăng ký của tệp (public.heic, public.jpeg...)
+                        if let (data, ext) = await self.loadRawImageData(from: provider) {
                             do {
-                                let importedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhoto(
-                                    image: image,
-                                    originalFileName: provider.suggestedName.map { "\($0).jpg" },
+                                savedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
+                                    data: data,
+                                    originalFileName: provider.suggestedName.map { "\($0).\(ext)" },
                                     albumId: self.parent.targetAlbumId
                                 )
-                                
-                                // Xác thực vật lý: Chỉ xác nhận thành công khi tệp đã ghi vào đĩa
-                                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(importedPhoto) {
-                                    importedCount += 1
-                                    if let id = assetId {
-                                        verifiedSavedAssetIds.append(id)
+                            } catch {
+                                print("Lỗi lưu raw Data ảnh: \(error.localizedDescription)")
+                            }
+                        }
+                        
+                        // Tầng 2: Nếu chưa nạp được, thử nạp qua file representation
+                        if savedPhoto == nil {
+                            if let fileURL = await self.loadImageFile(from: provider) {
+                                if let fileData = try? Data(contentsOf: fileURL), !fileData.isEmpty {
+                                    do {
+                                        savedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
+                                            data: fileData,
+                                            originalFileName: provider.suggestedName.map { "\($0).\(fileURL.pathExtension)" },
+                                            albumId: self.parent.targetAlbumId
+                                        )
+                                    } catch {
+                                        print("Lỗi lưu file ảnh: \(error.localizedDescription)")
                                     }
                                 }
-                            } catch {
-                                print("Lỗi mã hóa ảnh: \(error.localizedDescription)")
+                                try? FileManager.default.removeItem(at: fileURL)
+                            }
+                        }
+                        
+                        // Tầng 3: Fallback qua UIImage
+                        if savedPhoto == nil && provider.canLoadObject(ofClass: UIImage.self) {
+                            if let image = await self.loadImageObject(from: provider) {
+                                do {
+                                    savedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhoto(
+                                        image: image,
+                                        originalFileName: provider.suggestedName.map { "\($0).jpg" },
+                                        albumId: self.parent.targetAlbumId
+                                    )
+                                } catch {
+                                    print("Lỗi lưu UIImage: \(error.localizedDescription)")
+                                }
+                            }
+                        }
+                        
+                        // Kiểm tra xác thực vật lý
+                        if let photo = savedPhoto, PhotoStorageManager.shared.isMediaPhysicallyOnDisk(photo) {
+                            importedCount += 1
+                            if let id = assetId {
+                                verifiedSavedAssetIds.append(id)
                             }
                         }
                     }
@@ -127,7 +164,6 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                         self.parent.isPresented = false
                         
                         // Đợi 0.35 giây cho hiệu ứng đóng sheet hoàn tất hoàn toàn trước khi gọi onImportCompleted
-                        // Điều này ngăn chặn việc hiển thị Alert đè lên animation đóng sheet gây crash UIKit!
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                             self.parent.onImportCompleted(importedCount, verifiedSavedAssetIds)
                         }
@@ -136,9 +172,76 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
             }
         }
         
-        // MARK: - Helpers Nạp Dữ Liệu An Toàn Tuyệt Đối (Zero Crash)
+        // MARK: - Helpers Nạp Dữ Liệu An Toàn Tuyệt Đối
         
-        private func loadImage(from provider: NSItemProvider) async -> UIImage? {
+        /// Nạp raw data của ảnh theo đúng định dạng HEIC/JPEG/PNG từ ItemProvider
+        private func loadRawImageData(from provider: NSItemProvider) async -> (Data, String)? {
+            let registered = provider.registeredTypeIdentifiers
+            // Ưu tiên theo thứ tự: heic, jpeg, png, bất kỳ image nào
+            let candidateTypes = registered.filter { type in
+                if let ut = UTType(type) { return ut.conforms(to: .image) }
+                return type.contains("image") || type.contains("heic") || type.contains("jpeg") || type.contains("png")
+            }
+            
+            for typeId in candidateTypes {
+                let result: Data? = await withCheckedContinuation { continuation in
+                    var hasResumed = false
+                    provider.loadDataRepresentation(forTypeIdentifier: typeId) { data, error in
+                        guard !hasResumed else { return }
+                        hasResumed = true
+                        continuation.resume(returning: data)
+                    }
+                }
+                
+                if let data = result, !data.isEmpty {
+                    let ext = UTType(typeId)?.preferredFilenameExtension ?? "jpg"
+                    return (data, ext)
+                }
+            }
+            return nil
+        }
+        
+        /// Nạp ảnh qua File Representation
+        private func loadImageFile(from provider: NSItemProvider) async -> URL? {
+            let registered = provider.registeredTypeIdentifiers
+            let candidateTypes = registered.filter { type in
+                if let ut = UTType(type) { return ut.conforms(to: .image) }
+                return type.contains("image") || type.contains("heic") || type.contains("jpeg") || type.contains("png")
+            }
+            
+            for typeId in candidateTypes {
+                let result: URL? = await withCheckedContinuation { continuation in
+                    var hasResumed = false
+                    provider.loadFileRepresentation(forTypeIdentifier: typeId) { url, _ in
+                        guard !hasResumed else { return }
+                        hasResumed = true
+                        guard let src = url else {
+                            continuation.resume(returning: nil)
+                            return
+                        }
+                        let tempDest = URL(fileURLWithPath: NSTemporaryDirectory())
+                            .appendingPathComponent(UUID().uuidString + "_" + src.lastPathComponent)
+                        do {
+                            if FileManager.default.fileExists(atPath: tempDest.path) {
+                                try FileManager.default.removeItem(at: tempDest)
+                            }
+                            try FileManager.default.copyItem(at: src, to: tempDest)
+                            continuation.resume(returning: tempDest)
+                        } catch {
+                            continuation.resume(returning: nil)
+                        }
+                    }
+                }
+                
+                if let url = result {
+                    return url
+                }
+            }
+            return nil
+        }
+        
+        /// Nạp ảnh qua UIImage object
+        private func loadImageObject(from provider: NSItemProvider) async -> UIImage? {
             guard provider.canLoadObject(ofClass: UIImage.self) else { return nil }
             return await withCheckedContinuation { continuation in
                 var hasResumed = false
@@ -150,29 +253,45 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
             }
         }
         
+        /// Nạp Video qua File Representation
         private func loadVideoFile(from provider: NSItemProvider) async -> URL? {
-            return await withCheckedContinuation { continuation in
-                var hasResumed = false
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, _ in
-                    guard !hasResumed else { return }
-                    hasResumed = true
-                    guard let src = url else {
-                        continuation.resume(returning: nil)
-                        return
-                    }
-                    let tempDest = URL(fileURLWithPath: NSTemporaryDirectory())
-                        .appendingPathComponent(UUID().uuidString + "_" + src.lastPathComponent)
-                    do {
-                        if FileManager.default.fileExists(atPath: tempDest.path) {
-                            try FileManager.default.removeItem(at: tempDest)
+            let registered = provider.registeredTypeIdentifiers
+            let candidateTypes = registered.filter { type in
+                if let ut = UTType(type) { return ut.conforms(to: .movie) }
+                return type.contains("movie") || type.contains("video") || type.contains("mp4") || type.contains("quicktime")
+            }
+            
+            let typesToTry = candidateTypes.isEmpty ? [UTType.movie.identifier] : candidateTypes
+            
+            for typeId in typesToTry {
+                let result: URL? = await withCheckedContinuation { continuation in
+                    var hasResumed = false
+                    provider.loadFileRepresentation(forTypeIdentifier: typeId) { url, _ in
+                        guard !hasResumed else { return }
+                        hasResumed = true
+                        guard let src = url else {
+                            continuation.resume(returning: nil)
+                            return
                         }
-                        try FileManager.default.copyItem(at: src, to: tempDest)
-                        continuation.resume(returning: tempDest)
-                    } catch {
-                        continuation.resume(returning: nil)
+                        let tempDest = URL(fileURLWithPath: NSTemporaryDirectory())
+                            .appendingPathComponent(UUID().uuidString + "_" + src.lastPathComponent)
+                        do {
+                            if FileManager.default.fileExists(atPath: tempDest.path) {
+                                try FileManager.default.removeItem(at: tempDest)
+                            }
+                            try FileManager.default.copyItem(at: src, to: tempDest)
+                            continuation.resume(returning: tempDest)
+                        } catch {
+                            continuation.resume(returning: nil)
+                        }
                     }
                 }
+                
+                if let url = result {
+                    return url
+                }
             }
+            return nil
         }
     }
     

@@ -126,17 +126,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: "v1.2.1"
-          name: "Private Photo Vault iOS (TrollStore Edition) v1.2.1"
+          tag_name: "v1.2.2"
+          name: "Private Photo Vault iOS (TrollStore Edition) v1.2.2"
           body: |
-            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Khắc Phục Lỗi Văng App v1.2.1)**
+            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Sửa Lỗi Hiển Thị & Nạp Ảnh HEIC v1.2.2)**
             
-            ✨ **Khắc phục triệt để lỗi bấm thêm ảnh bị văng app:**
-            - 🛡️ **Giữ kết nối Photos XPC khi nạp ảnh**: Đã sửa lỗi giải phóng `PHPickerViewController` quá sớm trong khi `Task` nền đang nạp dữ liệu từ hệ thống. Picker giờ đây giữ kết nối an toàn cho tới khi toàn bộ ảnh/video được mã hóa và ghi xong xuống ổ đĩa, loại bỏ hoàn toàn sự cố crash/văng app.
-            - ⏱️ **Điều phối Alert & Sheet mượt mà**: Đặt độ trễ chuẩn sau khi đóng sheet mới kích hoạt hộp thoại xác nhận xóa gốc, ngăn chặn xung đột phân cấp giao diện (Presentation Controller collision) trên iOS 16/17/18.
-            - 🔒 **Chống kích hoạt lặp RunLoop**: Tối ưu hóa lắng nghe luồng dữ liệu trên Combine RunLoop tránh hiện tượng deadlock hoặc re-entrancy.
-            - ✅ **Xác thực vật lý an toàn 100%**: Chỉ hỏi xóa ảnh gốc khỏi iPhone khi ảnh đã thực sự nằm an toàn trong kho bí mật.
-            - 🎨 **App Icon sắc nét & Ngụy trang 10 lần chạm**: Đầy đủ tính năng icon hiển thị trên SpringBoard và mật khẩu `36@Hamnghi` sau 10 lần nhấp chuông thông báo.
+            ✨ **Khắc phục triệt để lỗi không lưu và không thấy ảnh trong Album:**
+            - 📸 **Hỗ trợ toàn diện ảnh HEIC camera iPhone**: Cơ chế nạp đa tầng nhận diện trực tiếp định dạng `public.heic`, `public.jpeg`, `public.png` từ `registeredTypeIdentifiers`, đảm bảo 100% ảnh chụp từ iPhone được đọc và mã hóa thành công vào kho.
+            - 🔑 **Cơ chế lưu khóa mã hóa dự phòng (Keychain Fallback)**: Tự động lưu khóa AES-256 vào tệp bảo mật cục bộ, khắc phục triệt để lỗi `-34018` của iOS Keychain trong môi trường TrollStore / Fakesign, đảm bảo siêu dữ liệu và ảnh luôn hiển thị đúng sau khi thêm.
+            - 📁 **Loại bỏ cờ chặn quyền thư mục Vault**: Bỏ hạn chế `completeUnlessOpen` để hệ thống luôn có quyền ghi tệp nhị phân xuống bộ nhớ máy mà không bị lỗi cấp quyền.
+            - 🛡️ **Kiểm tra vật lý chuẩn xác**: Xác thực tệp tồn tại trên đĩa đơn giản và tin cậy, không bị lỗi ép kiểu kích thước.
             
             📲 **Cài đặt cực nhanh**: Tải file `PrivatePhotoVault.ipa` bên dưới và mở bằng ứng dụng **TrollStore** trên iPhone để cài đặt dùng ngay!
           files: PrivatePhotoVault.ipa

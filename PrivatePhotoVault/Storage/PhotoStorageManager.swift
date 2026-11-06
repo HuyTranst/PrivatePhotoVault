@@ -17,9 +17,7 @@ public final class PhotoStorageManager: ObservableObject {
         let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let vault = docs.appendingPathComponent("Vault", isDirectory: true)
         if !fileManager.fileExists(atPath: vault.path) {
-            try? fileManager.createDirectory(at: vault, withIntermediateDirectories: true, attributes: [
-                FileAttributeKey.protectionKey: FileProtectionType.completeUnlessOpen
-            ])
+            try? fileManager.createDirectory(at: vault, withIntermediateDirectories: true, attributes: nil)
             var resourceValues = URLResourceValues()
             resourceValues.isExcludedFromBackup = true
             var mutableVault = vault
@@ -103,10 +101,8 @@ public final class PhotoStorageManager: ObservableObject {
             let encryptedFull = try CryptoEngine.shared.encrypt(data: fullData)
             try encryptedFull.write(to: fullFileURL, options: .atomic)
             
-            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục và có dung lượng > 0
-            guard self.fileManager.fileExists(atPath: fullFileURL.path),
-                  let attrs = try? self.fileManager.attributesOfItem(atPath: fullFileURL.path),
-                  let size = attrs[.size] as? Int64, size > 0 else {
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục
+            guard self.fileManager.fileExists(atPath: fullFileURL.path) else {
                 throw NSError(domain: "PhotoStorageManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Ảnh không tồn tại trong kho lưu trữ sau khi ghi."])
             }
             
@@ -175,10 +171,8 @@ public final class PhotoStorageManager: ObservableObject {
                 try? encryptedFull.write(to: thumbFileURL, options: .atomic)
             }
             
-            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục và có dung lượng > 0
-            guard self.fileManager.fileExists(atPath: fullFileURL.path),
-                  let attrs = try? self.fileManager.attributesOfItem(atPath: fullFileURL.path),
-                  let size = attrs[.size] as? Int64, size > 0 else {
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File đã thực sự ghi thành công vào thư mục
+            guard self.fileManager.fileExists(atPath: fullFileURL.path) else {
                 throw NSError(domain: "PhotoStorageManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Ảnh không tồn tại trong kho lưu trữ sau khi ghi."])
             }
             
@@ -257,10 +251,8 @@ public final class PhotoStorageManager: ObservableObject {
             
             let videoSize = (try? destVideoURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             
-            // KIỂM TRA VẬT LÝ BẮT BUỘC: File video đã thực sự ghi thành công vào thư mục và có dung lượng > 0
-            guard self.fileManager.fileExists(atPath: destVideoURL.path),
-                  let attrs = try? self.fileManager.attributesOfItem(atPath: destVideoURL.path),
-                  let size = attrs[.size] as? Int64, size > 0 else {
+            // KIỂM TRA VẬT LÝ BẮT BUỘC: File video đã thực sự ghi thành công vào thư mục
+            guard self.fileManager.fileExists(atPath: destVideoURL.path) else {
                 throw NSError(domain: "PhotoStorageManager", code: 501, userInfo: [NSLocalizedDescriptionKey: "Xác thực tệp thất bại: Video không tồn tại trong kho lưu trữ sau khi ghi."])
             }
             
@@ -293,9 +285,7 @@ public final class PhotoStorageManager: ObservableObject {
     /// Xác thực vật lý một tệp ảnh/video đã tồn tại thực sự trên ổ đĩa trong kho Vault
     public func isMediaPhysicallyOnDisk(_ photo: EncryptedPhoto) -> Bool {
         let fileURL = vaultDirectory.appendingPathComponent(photo.encryptedFileName)
-        guard fileManager.fileExists(atPath: fileURL.path) else { return false }
-        let size = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
-        return size > 0
+        return fileManager.fileExists(atPath: fileURL.path)
     }
     
     /// Nhập video từ Data bộ nhớ (khi restore từ ZIP)
