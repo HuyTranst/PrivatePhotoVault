@@ -113,10 +113,21 @@ public final class AlbumManager: ObservableObject {
         saveAlbums()
     }
     
+    /// ID của Album mặc định ("Main Album" chứa toàn bộ ảnh)
+    public var defaultAlbumId: UUID? {
+        return albums.first(where: { $0.isDefault })?.id ?? albums.first?.id
+    }
+    
     /// Lấy danh sách ảnh thuộc về một album cụ thể (chỉ ảnh không nằm trong thùng rác)
+    /// Với Album mặc định (Main Album), luôn hiển thị TOÀN BỘ ảnh có trong kho
     public func photos(in albumId: UUID) -> [EncryptedPhoto] {
+        let isDefaultAlbum = albums.first(where: { $0.id == albumId })?.isDefault ?? false
         return PhotoStorageManager.shared.photos.filter {
-            !$0.isTrash && $0.albumIds.contains(albumId)
+            if $0.isTrash { return false }
+            if isDefaultAlbum {
+                return true
+            }
+            return $0.albumIds.contains(albumId)
         }
     }
     

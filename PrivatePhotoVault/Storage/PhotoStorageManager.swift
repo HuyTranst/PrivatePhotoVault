@@ -30,6 +30,10 @@ public final class PhotoStorageManager: ObservableObject {
         return vaultDirectory.appendingPathComponent(metadataFileName)
     }
     
+    private var backupMetadataURL: URL {
+        return vaultDirectory.appendingPathComponent("vault_photos_meta_backup.json")
+    }
+    
     private init() {
         loadMetadata()
     }
@@ -37,24 +41,36 @@ public final class PhotoStorageManager: ObservableObject {
     // MARK: - Metadata Persistence
     
     private func loadMetadata() {
-        guard fileManager.fileExists(atPath: metadataURL.path) else { return }
-        do {
-            let data = try Data(contentsOf: metadataURL)
-            if let decrypted = try? CryptoEngine.shared.decrypt(combinedData: data) {
-                let decoded = try JSONDecoder().decode([EncryptedPhoto].self, from: decrypted)
+        // 1. Thử giải mã tệp chính đã mã hóa AES-256
+        if fileManager.fileExists(atPath: metadataURL.path),
+           let data = try? Data(contentsOf: metadataURL) {
+            if let decrypted = try? CryptoEngine.shared.decrypt(combinedData: data),
+               let decoded = try? JSONDecoder().decode([EncryptedPhoto].self, from: decrypted) {
                 self.photos = decoded
-            } else {
-                let decoded = try JSONDecoder().decode([EncryptedPhoto].self, from: data)
+                return
+            } else if let decoded = try? JSONDecoder().decode([EncryptedPhoto].self, from: data) {
                 self.photos = decoded
+                return
             }
-        } catch {
-            print("Lỗi nạp metadata: \(error.localizedDescription)")
+        }
+        
+        // 2. Cơ chế bảo hiểm kép: Đọc từ tệp sao lưu dự phòng nếu tệp mã hóa gặp sự cố Keychain
+        if fileManager.fileExists(atPath: backupMetadataURL.path),
+           let backupData = try? Data(contentsOf: backupMetadataURL),
+           let backupDecoded = try? JSONDecoder().decode([EncryptedPhoto].self, from: backupData) {
+            self.photos = backupDecoded
+            print("Đã khôi phục \(backupDecoded.count) siêu dữ liệu ảnh từ bản sao lưu an toàn.")
         }
     }
     
     public func saveMetadata() {
         do {
             let encoded = try JSONEncoder().encode(photos)
+            
+            // Lưu bản dự phòng an toàn trước
+            try? encoded.write(to: backupMetadataURL, options: .atomic)
+            
+            // Mã hóa AES-256-GCM và ghi vào tệp chính
             let encrypted = try CryptoEngine.shared.encrypt(data: encoded)
             try encrypted.write(to: metadataURL, options: .atomic)
         } catch {
@@ -68,7 +84,7 @@ public final class PhotoStorageManager: ObservableObject {
     public func importAndEncryptPhoto(
         image: UIImage,
         originalFileName: String? = nil,
-        albumId: UUID
+        albumIds: [UUID]
     ) async throws -> EncryptedPhoto {
         return try await Task.detached(priority: .userInitiated) {
             let id = UUID()
@@ -117,7 +133,7 @@ public final class PhotoStorageManager: ObservableObject {
                 originalWidth: image.size.width,
                 originalHeight: image.size.height,
                 fileSizeBytes: Int64(encryptedFull.count),
-                albumIds: [albumId],
+                albumIds: albumIds,
                 isTrash: false,
                 deletedAt: nil,
                 isFavorite: false
@@ -132,11 +148,19 @@ public final class PhotoStorageManager: ObservableObject {
         }.value
     }
     
+    public func importAndEncryptPhoto(
+        image: UIImage,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        return try await importAndEncryptPhoto(image: image, originalFileName: originalFileName, albumIds: [albumId])
+    }
+    
     /// Mã hóa và lưu trực tiếp Data ảnh gốc (giữ nguyên 100% định dạng HEIC/PNG/JPEG, EXIF và tối ưu RAM)
     public func importAndEncryptPhotoData(
         data: Data,
         originalFileName: String? = nil,
-        albumId: UUID
+        albumIds: [UUID]
     ) async throws -> EncryptedPhoto {
         return try await Task.detached(priority: .userInitiated) {
             let id = UUID()
@@ -187,7 +211,7 @@ public final class PhotoStorageManager: ObservableObject {
                 originalWidth: imageWidth,
                 originalHeight: imageHeight,
                 fileSizeBytes: Int64(encryptedFull.count),
-                albumIds: [albumId],
+                albumIds: albumIds,
                 isTrash: false,
                 deletedAt: nil,
                 isFavorite: false
@@ -202,13 +226,21 @@ public final class PhotoStorageManager: ObservableObject {
         }.value
     }
     
+    public func importAndEncryptPhotoData(
+        data: Data,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        return try await importAndEncryptPhotoData(data: data, originalFileName: originalFileName, albumIds: [albumId])
+    }
+    
     // MARK: - Import Video Pipeline
     
     /// Nhập video vào kho bảo mật (lưu trữ nguyên định dạng video chất lượng gốc và tạo thumbnail mã hóa)
     public func importVideo(
         sourceURL: URL,
         originalFileName: String? = nil,
-        albumId: UUID
+        albumIds: [UUID]
     ) async throws -> EncryptedPhoto {
         return try await Task.detached(priority: .userInitiated) {
             let id = UUID()
@@ -267,7 +299,7 @@ public final class PhotoStorageManager: ObservableObject {
                 originalWidth: videoWidth,
                 originalHeight: videoHeight,
                 fileSizeBytes: Int64(videoSize),
-                albumIds: [albumId],
+                albumIds: albumIds,
                 isTrash: false,
                 deletedAt: nil,
                 isFavorite: false
@@ -280,6 +312,14 @@ public final class PhotoStorageManager: ObservableObject {
             
             return item
         }.value
+    }
+    
+    public func importVideo(
+        sourceURL: URL,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        return try await importVideo(sourceURL: sourceURL, originalFileName: originalFileName, albumIds: [albumId])
     }
     
     /// Xác thực vật lý một tệp ảnh/video đã tồn tại thực sự trên ổ đĩa trong kho Vault

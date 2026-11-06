@@ -55,6 +55,10 @@ public struct AlbumDetailView: View {
     }
     
     private var albumPhotos: [EncryptedPhoto] {
+        if album.isDefault {
+            // Main Album hiển thị toàn bộ ảnh và video đang có trong kho
+            return photoStorage.photos.filter { !$0.isTrash }
+        }
         return photoStorage.photos.filter { !$0.isTrash && $0.albumIds.contains(album.id) }
     }
     

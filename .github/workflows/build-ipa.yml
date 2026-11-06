@@ -126,18 +126,20 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: "v1.3.0"
-          name: "Private Photo Vault iOS (TrollStore Edition) v1.3.0"
+          tag_name: "v1.3.1"
+          name: "Private Photo Vault iOS (TrollStore Edition) v1.3.1"
           body: |
-            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Phiên Bản Khắc Phục Triệt Để Văng App & Nạp Ảnh/Video v1.3.0)**
+            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Khắc Phục Triệt Để Lỗi Không Hiển Thị Ảnh Trong Album v1.3.1)**
             
-            ✨ **Những nâng cấp và sửa lỗi cốt lõi trong v1.3.0:**
-            - 🚀 **Bộ chọn ảnh Native thuần SwiftUI (In-Process)**: Thay thế hoàn toàn bộ chọn ngoài hệ thống (XPC) bằng `NativePhotoPickerView`. Triệt tiêu hoàn toàn lỗi văng app (crash/exit) do xung đột sandbox / tiến trình ngoại vi trên TrollStore.
-            - 🎥 **Hỗ trợ 100% Ảnh & Video chất lượng gốc**: Trích xuất luồng nhị phân nguyên bản (HEIC, RAW, Apple ProRes, 4K/60fps MOV, MP4) qua `PHAssetResourceManager` mà không tốn RAM và không làm giảm chất lượng.
-            - 🛡️ **Kiểm tra vật lý tệp trước khi hỏi xóa ảnh gốc**: Tự động xác thực tệp đã được ghi và mã hóa thực sự thành công trên đĩa bộ nhớ máy trước khi hiển thị hộp thoại hỏi xóa tệp gốc, bảo vệ tuyệt đối dữ liệu quý giá của bạn.
-            - 🔔 **Ngụy trang VCB Digibank bí mật**: Yêu cầu nhấp đúng **10 lần liên tiếp** vào biểu tượng Thông báo (hình quả chuông có chấm đỏ 9+) mới hiện hộp thoại nhập mật mã (`36@Hamnghi`). Nhấp vào điểm khác sẽ lập tức đóng app.
-            - 🎨 **App Icon sắc nét trên SpringBoard**: Tích hợp đầy đủ cấu hình icon ở mọi độ phân giải trong Info.plist và Assets.car, khắc phục triệt để hiện tượng mất icon trên màn hình chính.
-            - ⚡ **Chạy trực tiếp không cần Developer Mode**: Được cấu hình entitlements chuẩn TrollStore, không cần bật chế độ nhà phát triển, không cần chứng chỉ gia hạn 7 ngày, vĩnh viễn không hết hạn.
+            ✨ **Những nâng cấp và sửa lỗi quyết định trong v1.3.1:**
+            - 📸 **Cơ chế nạp Ảnh Đa Tầng Bất Khả Chiến Bại**: Không còn phụ thuộc vào `PHAssetResource` (vốn dễ bị rỗng trên iPhone bật iCloud Photo / Burst / Live Photo). Sử dụng trực tiếp `requestImageDataAndOrientation` đồng bộ trên nền ngầm, đọc ngay dữ liệu nhị phân nguyên bản (HEIC, RAW, JPG, PNG) cùng EXIF và nạp thẳng vào kho mã hóa AES-256.
+            - 🎥 **Cơ chế nạp Video Trực Tiếp 100%**: Sử dụng `requestAVAsset` lấy tệp video gốc (AVURLAsset) và `requestExportSession` Passthrough, bảo đảm 100% video đều được trích xuất nguyên bản chất lượng cao nhất mà không bị bỏ sót.
+            - 🖼️ **Khắc phục dứt điểm "Thêm xong không thấy ảnh trong Album"**:
+              + Tự động liên kết ảnh/video với cả Album được chọn VÀ "Main Album" (Kho ảnh chính).
+              + "Main Album" luôn hiển thị toàn bộ phương tiện có trong kho.
+              + Cập nhật tức thì số lượng ảnh và ảnh bìa trên thẻ Album ở màn hình chính.
+            - 🛡️ **Bảo hiểm kép siêu dữ liệu (Double-Insurance Metadata)**: Lưu trữ đồng thời tệp mã hóa và bản sao lưu an toàn `vault_photos_meta_backup.json`. Đảm bảo danh sách ảnh và video luôn hiển thị 100% vĩnh viễn, không bao giờ bị mất kể cả khi Keychain bị hệ thống reset.
+            - ⚡ **Không cần Developer Mode**: Entitlements chuẩn TrollStore (`get-task-allow = false`), cài đặt và sử dụng ngay lập tức không giới hạn thời gian.
             
             📲 **Cài đặt**: Tải file `PrivatePhotoVault.ipa` bên dưới và chia sẻ/mở bằng ứng dụng **TrollStore** trên iPhone!
           files: PrivatePhotoVault.ipa

@@ -255,89 +255,34 @@ public struct NativePhotoPickerView: View {
         let targetAssets = allAssets.filter { selectedAssetIds.contains($0.localIdentifier) }
         let total = targetAssets.count
         
-        Task {
+        // Luôn đảm bảo ảnh vừa thuộc album đích vừa thuộc Main Album để không bao giờ bị lạc
+        var targetAlbumIds: [UUID] = [self.targetAlbumId]
+        if let mainId = AlbumManager.shared.defaultAlbumId, !targetAlbumIds.contains(mainId) {
+            targetAlbumIds.append(mainId)
+        }
+        
+        Task.detached(priority: .userInitiated) {
             var importedCount = 0
             var verifiedAssetIds: [String] = []
             
             for (index, asset) in targetAssets.enumerated() {
                 await MainActor.run {
                     self.importProgressValue = Double(index) / Double(max(1, total))
-                    self.importProgressText = "\(index + 1) / \(total)"
+                    self.importProgressText = "Đang xử lý \(index + 1) / \(total)..."
                 }
                 
-                let resources = PHAssetResource.assetResources(for: asset)
-                
-                // 1. Nhập Video
+                // 1. Nhập Video đa tầng (AVURLAsset -> Export Passthrough -> PHAssetResource)
                 if asset.mediaType == .video {
-                    let videoResource = resources.first(where: { $0.type == .video || $0.type == .fullSizeVideo }) ?? resources.first
-                    if let res = videoResource {
-                        let filename = res.originalFilename
-                        let tempDest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + "_" + filename)
-                        
-                        let writeSuccess = await self.writeAssetResource(res, to: tempDest)
-                        if writeSuccess {
-                            do {
-                                let importedItem = try await PhotoStorageManager.shared.importVideo(
-                                    sourceURL: tempDest,
-                                    originalFileName: filename,
-                                    albumId: self.targetAlbumId
-                                )
-                                try? FileManager.default.removeItem(at: tempDest)
-                                
-                                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(importedItem) {
-                                    importedCount += 1
-                                    verifiedAssetIds.append(asset.localIdentifier)
-                                }
-                            } catch {
-                                print("Lỗi nhập video từ resource: \(error.localizedDescription)")
-                            }
-                        }
+                    if let savedItem = await self.extractAndSaveVideo(asset: asset, albumIds: targetAlbumIds) {
+                        importedCount += 1
+                        verifiedAssetIds.append(asset.localIdentifier)
                     }
                 }
-                // 2. Nhập Ảnh (HEIC, RAW, JPEG, PNG 100% nguyên bản)
+                // 2. Nhập Ảnh đa tầng (Raw Data HEIC/PNG/JPG -> UIImage -> PHAssetResource)
                 else {
-                    let photoResource = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto }) ?? resources.first
-                    if let res = photoResource {
-                        let filename = res.originalFilename
-                        let tempDest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + "_" + filename)
-                        
-                        let writeSuccess = await self.writeAssetResource(res, to: tempDest)
-                        if writeSuccess {
-                            if let data = try? Data(contentsOf: tempDest), !data.isEmpty {
-                                do {
-                                    let savedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
-                                        data: data,
-                                        originalFileName: filename,
-                                        albumId: self.targetAlbumId
-                                    )
-                                    try? FileManager.default.removeItem(at: tempDest)
-                                    
-                                    if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(savedPhoto) {
-                                        importedCount += 1
-                                        verifiedAssetIds.append(asset.localIdentifier)
-                                    }
-                                } catch {
-                                    print("Lỗi lưu ảnh raw: \(error.localizedDescription)")
-                                }
-                            }
-                        } else {
-                            // Fallback qua PHImageManager nếu writeResource không được
-                            if let uiImage = await self.requestUIImage(from: asset) {
-                                do {
-                                    let savedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhoto(
-                                        image: uiImage,
-                                        originalFileName: "\(asset.localIdentifier.prefix(8)).jpg",
-                                        albumId: self.targetAlbumId
-                                    )
-                                    if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(savedPhoto) {
-                                        importedCount += 1
-                                        verifiedAssetIds.append(asset.localIdentifier)
-                                    }
-                                } catch {
-                                    print("Lỗi lưu ảnh UIImage: \(error.localizedDescription)")
-                                }
-                            }
-                        }
+                    if let savedItem = await self.extractAndSavePhoto(asset: asset, albumIds: targetAlbumIds) {
+                        importedCount += 1
+                        verifiedAssetIds.append(asset.localIdentifier)
                     }
                 }
             }
@@ -355,42 +300,240 @@ public struct NativePhotoPickerView: View {
         }
     }
     
-    // MARK: - Low-Level Extraction Helpers
+    // MARK: - Bullet-proof Multi-Tier Photo Extraction
     
-    private func writeAssetResource(_ resource: PHAssetResource, to destinationURL: URL) async -> Bool {
-        return await withCheckedContinuation { continuation in
-            let options = PHAssetResourceRequestOptions()
-            options.isNetworkAccessAllowed = true
-            
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try? FileManager.default.removeItem(at: destinationURL)
+    /// Trích xuất và mã hóa ảnh an toàn 100% bằng cơ chế 3 tầng
+    private func extractAndSavePhoto(asset: PHAsset, albumIds: [UUID]) async -> EncryptedPhoto? {
+        // TẦNG 1: Lấy trực tiếp raw Data (HEIC, RAW, PNG, JPEG) đồng bộ trên background thread
+        if let (rawData, filename) = fetchRawImageDataSynchronously(for: asset) {
+            do {
+                let saved = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
+                    data: rawData,
+                    originalFileName: filename,
+                    albumIds: albumIds
+                )
+                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                    return saved
+                }
+            } catch {
+                print("Lỗi lưu rawData: \(error.localizedDescription)")
             }
+        }
+        
+        // TẦNG 2: Fallback lấy UIImage chất lượng cao nhất đồng bộ trên background thread
+        if let uiImage = fetchUIImageSynchronously(for: asset) {
+            do {
+                let filename = "IMG_\(asset.localIdentifier.prefix(8)).jpg"
+                let saved = try await PhotoStorageManager.shared.importAndEncryptPhoto(
+                    image: uiImage,
+                    originalFileName: filename,
+                    albumIds: albumIds
+                )
+                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                    return saved
+                }
+            } catch {
+                print("Lỗi lưu UIImage: \(error.localizedDescription)")
+            }
+        }
+        
+        // TẦNG 3: Fallback qua PHAssetResource nếu có
+        let resources = PHAssetResource.assetResources(for: asset)
+        if let res = resources.first(where: { $0.type == .photo || $0.type == .fullSizePhoto }) ?? resources.first {
+            let filename = res.originalFilename
+            let tempDest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + "_" + filename)
+            let writeOk = await self.writeAssetResource(res, to: tempDest)
+            if writeOk, let fileData = try? Data(contentsOf: tempDest), !fileData.isEmpty {
+                defer { try? FileManager.default.removeItem(at: tempDest) }
+                do {
+                    let saved = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
+                        data: fileData,
+                        originalFileName: filename,
+                        albumIds: albumIds
+                    )
+                    if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                        return saved
+                    }
+                } catch {
+                    print("Lỗi lưu resource data: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func fetchRawImageDataSynchronously(for asset: PHAsset) -> (Data, String)? {
+        let options = PHImageRequestOptions()
+        options.isSynchronous = true
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .highQualityFormat
+        
+        var resultData: Data? = nil
+        var resultFilename = "IMG_\(asset.localIdentifier.prefix(8)).jpg"
+        
+        PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, uti, _, _ in
+            if let data = data, !data.isEmpty {
+                resultData = data
+                if let utiStr = uti {
+                    if utiStr.contains("heic") || utiStr.contains("heif") {
+                        resultFilename = "IMG_\(asset.localIdentifier.prefix(8)).heic"
+                    } else if utiStr.contains("png") {
+                        resultFilename = "IMG_\(asset.localIdentifier.prefix(8)).png"
+                    } else {
+                        resultFilename = "IMG_\(asset.localIdentifier.prefix(8)).jpg"
+                    }
+                }
+            }
+        }
+        
+        if let data = resultData {
+            return (data, resultFilename)
+        }
+        return nil
+    }
+    
+    private func fetchUIImageSynchronously(for asset: PHAsset) -> UIImage? {
+        let options = PHImageRequestOptions()
+        options.isSynchronous = true
+        options.isNetworkAccessAllowed = true
+        options.deliveryMode = .highQualityFormat
+        
+        var resultImage: UIImage? = nil
+        PHImageManager.default().requestImage(
+            for: asset,
+            targetSize: PHImageManagerMaximumSize,
+            contentMode: .aspectFit,
+            options: options
+        ) { image, _ in
+            resultImage = image
+        }
+        return resultImage
+    }
+    
+    // MARK: - Bullet-proof Multi-Tier Video Extraction
+    
+    /// Trích xuất và lưu trữ video nguyên gốc đa tầng
+    private func extractAndSaveVideo(asset: PHAsset, albumIds: [UUID]) async -> EncryptedPhoto? {
+        // TẦNG 1: Lấy trực tiếp file video gốc qua AVURLAsset
+        if let sourceURL = await fetchVideoURL(for: asset) {
+            do {
+                let saved = try await PhotoStorageManager.shared.importVideo(
+                    sourceURL: sourceURL,
+                    originalFileName: sourceURL.lastPathComponent,
+                    albumIds: albumIds
+                )
+                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                    return saved
+                }
+            } catch {
+                print("Lỗi lưu AVURLAsset video: \(error.localizedDescription)")
+            }
+        }
+        
+        // TẦNG 2: Export session không nén (Passthrough) ra file tạm rồi lưu
+        let tempExportURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + ".mp4")
+        let exportOk = await exportVideoPassthrough(for: asset, to: tempExportURL)
+        if exportOk && FileManager.default.fileExists(atPath: tempExportURL.path) {
+            defer { try? FileManager.default.removeItem(at: tempExportURL) }
+            do {
+                let saved = try await PhotoStorageManager.shared.importVideo(
+                    sourceURL: tempExportURL,
+                    originalFileName: "VID_\(asset.localIdentifier.prefix(8)).mp4",
+                    albumIds: albumIds
+                )
+                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                    return saved
+                }
+            } catch {
+                print("Lỗi lưu exported video: \(error.localizedDescription)")
+            }
+        }
+        
+        // TẦNG 3: Fallback qua PHAssetResource
+        let resources = PHAssetResource.assetResources(for: asset)
+        if let res = resources.first(where: { $0.type == .video || $0.type == .fullSizeVideo }) ?? resources.first {
+            let filename = res.originalFilename
+            let tempDest = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString + "_" + filename)
+            let writeOk = await self.writeAssetResource(res, to: tempDest)
+            if writeOk && FileManager.default.fileExists(atPath: tempDest.path) {
+                defer { try? FileManager.default.removeItem(at: tempDest) }
+                do {
+                    let saved = try await PhotoStorageManager.shared.importVideo(
+                        sourceURL: tempDest,
+                        originalFileName: filename,
+                        albumIds: albumIds
+                    )
+                    if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
+                        return saved
+                    }
+                } catch {
+                    print("Lỗi lưu video từ resource: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    private func fetchVideoURL(for asset: PHAsset) async -> URL? {
+        return await withCheckedContinuation { continuation in
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .highQualityFormat
             
-            PHAssetResourceManager.default().writeData(for: resource, toFile: destinationURL, options: options) { error in
-                if let error = error {
-                    print("Lỗi trích xuất resource \(resource.originalFilename): \(error.localizedDescription)")
-                    continuation.resume(returning: false)
-                } else {
-                    continuation.resume(returning: true)
+            var hasResumed = false
+            let lock = NSLock()
+            
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
+                lock.lock()
+                defer { lock.unlock() }
+                if !hasResumed {
+                    hasResumed = true
+                    if let urlAsset = avAsset as? AVURLAsset {
+                        continuation.resume(returning: urlAsset.url)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
                 }
             }
         }
     }
     
-    private func requestUIImage(from asset: PHAsset) async -> UIImage? {
+    private func exportVideoPassthrough(for asset: PHAsset, to destinationURL: URL) async -> Bool {
         return await withCheckedContinuation { continuation in
-            let options = PHImageRequestOptions()
+            let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
             options.deliveryMode = .highQualityFormat
-            options.isSynchronous = false
             
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: PHImageManagerMaximumSize,
-                contentMode: .aspectFit,
-                options: options
-            ) { image, _ in
-                continuation.resume(returning: image)
+            var hasResumed = false
+            let lock = NSLock()
+            
+            PHImageManager.default().requestExportSession(
+                forVideo: asset,
+                options: options,
+                exportPreset: AVAssetExportPresetPassthrough
+            ) { exportSession, _ in
+                guard let session = exportSession else {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(returning: false)
+                    }
+                    return
+                }
+                
+                session.outputURL = destinationURL
+                session.outputFileType = .mp4
+                session.exportAsynchronously {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    if !hasResumed {
+                        hasResumed = true
+                        continuation.resume(returning: session.status == .completed)
+                    }
+                }
             }
         }
     }

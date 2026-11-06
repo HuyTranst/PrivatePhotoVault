@@ -86,8 +86,8 @@ public struct MainAlbumsView: View {
                 CreateAlbumSheet(isPresented: $isCreateAlbumPresented)
             }
             .sheet(isPresented: $isPhotoPickerPresented) {
-                // Mặc định nhập vào Main Album nếu ở màn hình ngoài
-                let targetId = albumManager.albums.first?.id ?? UUID()
+                // Luôn nhập vào Main Album mặc định nếu chọn thêm từ màn hình ngoài
+                let targetId = albumManager.defaultAlbumId ?? (albumManager.albums.first?.id ?? UUID())
                 NativePhotoPickerView(
                     isPresented: $isPhotoPickerPresented,
                     targetAlbumId: targetId,
