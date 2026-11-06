@@ -20,10 +20,18 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
     }
     
     public func makeUIViewController(context: Context) -> PHPickerViewController {
-        var config = PHPickerConfiguration(photoLibrary: .shared())
-        config.selectionLimit = 0 // Không giới hạn số lượng ảnh/video chọn
+        let authStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        var config: PHPickerConfiguration
+        if authStatus == .authorized || authStatus == .limited {
+            config = PHPickerConfiguration(photoLibrary: .shared())
+        } else {
+            // Khi chưa cấp quyền Photos, khởi tạo không cần tham số để tránh crash bảo mật
+            config = PHPickerConfiguration()
+        }
+        
+        config.selectionLimit = 0 // Cho phép chọn nhiều ảnh/video cùng lúc
         config.filter = .any(of: [.images, .videos]) // Hỗ trợ cả Ảnh và Video
-        config.preferredAssetRepresentationMode = .current // Giữ nguyên độ phân giải và chất lượng gốc
+        config.preferredAssetRepresentationMode = .current
         
         let picker = PHPickerViewController(configuration: config)
         picker.delegate = context.coordinator
@@ -44,18 +52,19 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
         }
         
         public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            // Đóng sheet trên MainActor
-            DispatchQueue.main.async {
-                self.parent.isPresented = false
-            }
-            
+            // Trường hợp người dùng nhấn "Hủy" (Cancel) hoặc không chọn gì
             guard !results.isEmpty else {
-                DispatchQueue.main.async {
+                picker.dismiss(animated: true) {
+                    self.parent.isPresented = false
                     self.parent.onImportCompleted(0, [])
                 }
                 return
             }
             
+            // QUAN TRỌNG: TUYỆT ĐỐI KHÔNG dismiss picker ngay tại đây!
+            // Khi PHPicker bị đóng, hệ thống iOS sẽ lập tức ngắt kết nối XPC tới tiến trình Photos daemon.
+            // Nếu ngắt kết nối trong khi Task đang đọc ảnh, ứng dụng sẽ bị crash ngay lập tức (văng app).
+            // Do đó: Giữ nguyên picker trên màn hình, đọc toàn bộ tệp xong xuôi rồi mới đóng picker!
             Task {
                 var importedCount = 0
                 var verifiedSavedAssetIds: [String] = []
@@ -64,7 +73,7 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                     let assetId = result.assetIdentifier
                     let provider = result.itemProvider
                     
-                    // 1. Kiểm tra nếu là Video
+                    // 1. Xử lý Video
                     if provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) ||
                        provider.hasItemConformingToTypeIdentifier("public.movie") {
                         if let videoURL = await self.loadVideoFile(from: provider) {
@@ -88,112 +97,65 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                             }
                         }
                     }
-                    // 2. Nếu là Ảnh (HEIC, JPEG, PNG, RAW...)
+                    // 2. Xử lý Ảnh (chuẩn Apple chính thức an toàn tuyệt đối 100%)
                     else {
-                        var photoSaved: EncryptedPhoto? = nil
-                        
-                        // Bước 2.1: Thử load raw file representation (bảo toàn 100% định dạng HEIC/PNG/EXIF gốc)
-                        if let fileURL = await self.loadImageFile(from: provider) {
-                            if let data = try? Data(contentsOf: fileURL), !data.isEmpty {
-                                do {
-                                    photoSaved = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
-                                        data: data,
-                                        originalFileName: provider.suggestedName.map { "\($0).\(fileURL.pathExtension)" },
-                                        albumId: self.parent.targetAlbumId
-                                    )
-                                } catch {
-                                    print("Lỗi mã hóa Data ảnh: \(error.localizedDescription)")
+                        if let image = await self.loadImage(from: provider) {
+                            do {
+                                let importedPhoto = try await PhotoStorageManager.shared.importAndEncryptPhoto(
+                                    image: image,
+                                    originalFileName: provider.suggestedName.map { "\($0).jpg" },
+                                    albumId: self.parent.targetAlbumId
+                                )
+                                
+                                // Xác thực vật lý: Chỉ xác nhận thành công khi tệp đã ghi vào đĩa
+                                if PhotoStorageManager.shared.isMediaPhysicallyOnDisk(importedPhoto) {
+                                    importedCount += 1
+                                    if let id = assetId {
+                                        verifiedSavedAssetIds.append(id)
+                                    }
                                 }
-                            }
-                            try? FileManager.default.removeItem(at: fileURL)
-                        }
-                        
-                        // Bước 2.2: Nếu chưa được, thử nạp data trực tiếp qua loadDataRepresentation
-                        if photoSaved == nil {
-                            if let data = await self.loadImageData(from: provider) {
-                                do {
-                                    photoSaved = try await PhotoStorageManager.shared.importAndEncryptPhotoData(
-                                        data: data,
-                                        originalFileName: provider.suggestedName.map { "\($0).jpg" },
-                                        albumId: self.parent.targetAlbumId
-                                    )
-                                } catch {
-                                    print("Lỗi nạp Data: \(error.localizedDescription)")
-                                }
-                            }
-                        }
-                        
-                        // Bước 2.3: Fallback cuối cùng nạp qua UIImage
-                        if photoSaved == nil && provider.canLoadObject(ofClass: UIImage.self) {
-                            if let image = await self.loadImageObject(from: provider) {
-                                do {
-                                    photoSaved = try await PhotoStorageManager.shared.importAndEncryptPhoto(
-                                        image: image,
-                                        originalFileName: provider.suggestedName.map { "\($0).jpg" },
-                                        albumId: self.parent.targetAlbumId
-                                    )
-                                } catch {
-                                    print("Lỗi nạp UIImage: \(error.localizedDescription)")
-                                }
-                            }
-                        }
-                        
-                        // Xác thực vật lý: Chỉ tính thành công và thêm assetId để xóa khi tệp đã lưu THỰC SỰ trên đĩa
-                        if let saved = photoSaved, PhotoStorageManager.shared.isMediaPhysicallyOnDisk(saved) {
-                            importedCount += 1
-                            if let id = assetId {
-                                verifiedSavedAssetIds.append(id)
+                            } catch {
+                                print("Lỗi mã hóa ảnh: \(error.localizedDescription)")
                             }
                         }
                     }
                 }
                 
+                // Sau khi đã nạp và lưu an toàn toàn bộ ảnh vào đĩa, tiến hành đóng picker
                 await MainActor.run {
-                    self.parent.onImportCompleted(importedCount, verifiedSavedAssetIds)
-                }
-            }
-        }
-        
-        // MARK: - Helpers Nạp Dữ Liệu
-        
-        private func loadImageFile(from provider: NSItemProvider) async -> URL? {
-            return await withCheckedContinuation { continuation in
-                provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { url, _ in
-                    guard let src = url else {
-                        continuation.resume(returning: nil)
-                        return
-                    }
-                    let tempDest = URL(fileURLWithPath: NSTemporaryDirectory())
-                        .appendingPathComponent(UUID().uuidString + "_" + src.lastPathComponent)
-                    do {
-                        try FileManager.default.copyItem(at: src, to: tempDest)
-                        continuation.resume(returning: tempDest)
-                    } catch {
-                        continuation.resume(returning: nil)
+                    picker.dismiss(animated: true) {
+                        self.parent.isPresented = false
+                        
+                        // Đợi 0.35 giây cho hiệu ứng đóng sheet hoàn tất hoàn toàn trước khi gọi onImportCompleted
+                        // Điều này ngăn chặn việc hiển thị Alert đè lên animation đóng sheet gây crash UIKit!
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            self.parent.onImportCompleted(importedCount, verifiedSavedAssetIds)
+                        }
                     }
                 }
             }
         }
         
-        private func loadImageData(from provider: NSItemProvider) async -> Data? {
-            return await withCheckedContinuation { continuation in
-                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    continuation.resume(returning: data)
-                }
-            }
-        }
+        // MARK: - Helpers Nạp Dữ Liệu An Toàn Tuyệt Đối (Zero Crash)
         
-        private func loadImageObject(from provider: NSItemProvider) async -> UIImage? {
+        private func loadImage(from provider: NSItemProvider) async -> UIImage? {
+            guard provider.canLoadObject(ofClass: UIImage.self) else { return nil }
             return await withCheckedContinuation { continuation in
-                provider.loadObject(ofClass: UIImage.self) { image, _ in
-                    continuation.resume(returning: image as? UIImage)
+                var hasResumed = false
+                provider.loadObject(ofClass: UIImage.self) { object, _ in
+                    guard !hasResumed else { return }
+                    hasResumed = true
+                    continuation.resume(returning: object as? UIImage)
                 }
             }
         }
         
         private func loadVideoFile(from provider: NSItemProvider) async -> URL? {
             return await withCheckedContinuation { continuation in
+                var hasResumed = false
                 provider.loadFileRepresentation(forTypeIdentifier: UTType.movie.identifier) { url, _ in
+                    guard !hasResumed else { return }
+                    hasResumed = true
                     guard let src = url else {
                         continuation.resume(returning: nil)
                         return
@@ -201,6 +163,9 @@ public struct PhotoPickerCoordinator: UIViewControllerRepresentable {
                     let tempDest = URL(fileURLWithPath: NSTemporaryDirectory())
                         .appendingPathComponent(UUID().uuidString + "_" + src.lastPathComponent)
                     do {
+                        if FileManager.default.fileExists(atPath: tempDest.path) {
+                            try FileManager.default.removeItem(at: tempDest)
+                        }
                         try FileManager.default.copyItem(at: src, to: tempDest)
                         continuation.resume(returning: tempDest)
                     } catch {

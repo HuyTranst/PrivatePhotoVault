@@ -130,8 +130,6 @@ public final class PhotoStorageManager: ObservableObject {
             await MainActor.run {
                 self.photos.insert(photo, at: 0)
                 self.saveMetadata()
-                self.objectWillChange.send()
-                AlbumManager.shared.objectWillChange.send()
             }
             
             return photo
@@ -204,8 +202,6 @@ public final class PhotoStorageManager: ObservableObject {
             await MainActor.run {
                 self.photos.insert(photo, at: 0)
                 self.saveMetadata()
-                self.objectWillChange.send()
-                AlbumManager.shared.objectWillChange.send()
             }
             
             return photo
@@ -288,8 +284,6 @@ public final class PhotoStorageManager: ObservableObject {
             await MainActor.run {
                 self.photos.insert(item, at: 0)
                 self.saveMetadata()
-                self.objectWillChange.send()
-                AlbumManager.shared.objectWillChange.send()
             }
             
             return item

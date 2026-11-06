@@ -24,7 +24,8 @@ public final class AlbumManager: ObservableObject {
     
     private func setupPhotoObserver() {
         PhotoStorageManager.shared.$photos
-            .receive(on: DispatchQueue.main)
+            .dropFirst()
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }

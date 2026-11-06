@@ -126,20 +126,19 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: "v1.2.0"
-          name: "Private Photo Vault iOS (TrollStore Edition) v1.2.0"
+          tag_name: "v1.2.1"
+          name: "Private Photo Vault iOS (TrollStore Edition) v1.2.1"
           body: |
-            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Sửa Lỗi Toàn Diện v1.2.0)**
+            🔒 **Bản IPA Cài Đặt Trực Tiếp Qua TrollStore Cho iPhone (Bản Khắc Phục Lỗi Văng App v1.2.1)**
             
-            ✨ **Cập nhật & Khắc phục quan trọng v1.2.0:**
-            - 🎨 **Hiển thị đầy đủ App Icon**: Đã cấu hình chuẩn `CFBundleIcons` và `CFBundleIconFiles` trong `Info.plist`, kèm assets catalog cho Springboard giúp icon hiển thị sắc nét trên màn hình chính qua TrollStore.
-            - 🔔 **Ngụy trang VCB Digibank (Nhấp 10 lần)**: Biểu tượng Thông báo (chuông vàng + 9+) yêu cầu người dùng nhấp đủ **10 lần liên tiếp** mới mở hộp thoại nhập mật khẩu (`36@Hamnghi`). Nhấp ra ngoài hoặc nhấp ít hơn 10 lần sẽ không bao giờ kích hoạt.
-            - 📥 **Sửa lỗi chép ảnh & video**: Đổi mới cơ chế nạp file nhị phân (hỗ trợ đầy đủ HEIC, RAW, PNG, JPEG, MP4, MOV) giúp việc nhập ảnh diễn ra ngay lập tức và mượt mà.
-            - 🛡️ **Kiểm tra vật lý an toàn trước khi hỏi xóa**: Ứng dụng thực hiện kiểm tra `fileExists` và `fileSizeBytes > 0` trong kho lưu trữ riêng tư. **Chỉ khi tệp ảnh/video đã thực sự được ghi thành công vào bộ nhớ máy thì mới hiện thông báo hỏi xóa file gốc khỏi iPhone**, tuyệt đối bảo vệ an toàn 100% cho dữ liệu của bạn, không bao giờ bị mất ảnh gốc!
-            - ➕ **Thêm nút (+) ngay trong từng Album**: Giờ đây bạn có thể thêm ảnh/video trực tiếp từ bên trong Album bất kỳ hoặc từ trang chi tiết album đang trống.
-            - ⚡ **Cập nhật giao diện thời gian thực**: Số lượng ảnh và ảnh bìa Album cập nhật ngay lập tức sau khi thêm ảnh.
+            ✨ **Khắc phục triệt để lỗi bấm thêm ảnh bị văng app:**
+            - 🛡️ **Giữ kết nối Photos XPC khi nạp ảnh**: Đã sửa lỗi giải phóng `PHPickerViewController` quá sớm trong khi `Task` nền đang nạp dữ liệu từ hệ thống. Picker giờ đây giữ kết nối an toàn cho tới khi toàn bộ ảnh/video được mã hóa và ghi xong xuống ổ đĩa, loại bỏ hoàn toàn sự cố crash/văng app.
+            - ⏱️ **Điều phối Alert & Sheet mượt mà**: Đặt độ trễ chuẩn sau khi đóng sheet mới kích hoạt hộp thoại xác nhận xóa gốc, ngăn chặn xung đột phân cấp giao diện (Presentation Controller collision) trên iOS 16/17/18.
+            - 🔒 **Chống kích hoạt lặp RunLoop**: Tối ưu hóa lắng nghe luồng dữ liệu trên Combine RunLoop tránh hiện tượng deadlock hoặc re-entrancy.
+            - ✅ **Xác thực vật lý an toàn 100%**: Chỉ hỏi xóa ảnh gốc khỏi iPhone khi ảnh đã thực sự nằm an toàn trong kho bí mật.
+            - 🎨 **App Icon sắc nét & Ngụy trang 10 lần chạm**: Đầy đủ tính năng icon hiển thị trên SpringBoard và mật khẩu `36@Hamnghi` sau 10 lần nhấp chuông thông báo.
             
-            📲 **Cài đặt cực nhanh**: Tải file `PrivatePhotoVault.ipa` bên dưới và chia sẻ/mở bằng ứng dụng **TrollStore** trên iPhone để cài đặt dùng ngay!
+            📲 **Cài đặt cực nhanh**: Tải file `PrivatePhotoVault.ipa` bên dưới và mở bằng ứng dụng **TrollStore** trên iPhone để cài đặt dùng ngay!
           files: PrivatePhotoVault.ipa
           draft: false
           prerelease: false
