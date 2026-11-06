@@ -1,6 +1,8 @@
 import SwiftUI
+import AVKit
+import Photos
 
-/// Trình xem ảnh toàn màn hình cao cấp chuẩn Apple Photos
+/// Trình xem ảnh & video toàn màn hình cao cấp chuẩn Apple Photos
 public struct FullScreenPhotoViewer: View {
     public let photos: [EncryptedPhoto]
     public let initialPhotoId: UUID
@@ -11,7 +13,11 @@ public struct FullScreenPhotoViewer: View {
     @State private var fullImages: [UUID: UIImage] = [:]
     @State private var isDeleteAlertPresented: Bool = false
     @State private var isShareSheetPresented: Bool = false
-    @State private var shareItem: UIImage? = nil
+    @State private var shareItems: [Any] = []
+    
+    @State private var isExportToPhotosAlertPresented: Bool = false
+    @State private var alertMessage: String = ""
+    @State private var isStatusAlertPresented: Bool = false
     
     public init(
         photos: [EncryptedPhoto],
@@ -28,21 +34,28 @@ public struct FullScreenPhotoViewer: View {
             Color.black.ignoresSafeArea()
             
             if !photos.isEmpty && currentIndex < photos.count {
-                // TabView hỗ trợ vuốt ngang mượt mà 60/120fps chuyển ảnh
                 TabView(selection: $currentIndex) {
                     ForEach(0..<photos.count, id: \.self) { index in
-                        let photo = photos[index]
+                        let item = photos[index]
                         ZStack {
-                            if let image = fullImages[photo.id] {
-                                ZoomableImageView(image: image) {
-                                    withAnimation(.easeInOut(duration: 0.25)) {
-                                        areControlsVisible.toggle()
-                                    }
-                                }
+                            if item.isVideo {
+                                // Trình phát Video Native AVPlayer
+                                let videoURL = PhotoStorageManager.shared.vaultDirectory.appendingPathComponent(item.encryptedFileName)
+                                VideoPlayer(player: AVPlayer(url: videoURL))
+                                    .ignoresSafeArea()
                             } else {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(1.2)
+                                // Trình xem ảnh phóng to thu nhỏ Pinch-to-zoom
+                                if let image = fullImages[item.id] {
+                                    ZoomableImageView(image: image) {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            areControlsVisible.toggle()
+                                        }
+                                    }
+                                } else {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(1.2)
+                                }
                             }
                         }
                         .tag(index)
@@ -87,7 +100,6 @@ public struct FullScreenPhotoViewer: View {
                         
                         Spacer()
                         
-                        // Cân bằng khoảng trống bên phải
                         Color.clear
                             .frame(width: 70, height: 40)
                     }
@@ -97,28 +109,54 @@ public struct FullScreenPhotoViewer: View {
                     Spacer()
                     
                     // Thanh công cụ dưới (Bottom Bar)
-                    HStack(spacing: 36) {
-                        Button(action: shareCurrentPhoto) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 22))
-                                .foregroundColor(.white)
+                    HStack(spacing: 30) {
+                        // 1. Lưu ra Photos
+                        Button(action: exportCurrentToPhotos) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 20))
+                                Text("Lưu Photos")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(.white)
                         }
                         
+                        // 2. Chia sẻ
+                        Button(action: shareCurrentMedia) {
+                            VStack(spacing: 4) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 20))
+                                Text("Chia sẻ")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(.white)
+                        }
+                        
+                        // 3. Yêu thích
                         Button(action: toggleFavorite) {
-                            Image(systemName: currentPhoto?.isFavorite == true ? "heart.fill" : "heart")
-                                .font(.system(size: 22))
-                                .foregroundColor(currentPhoto?.isFavorite == true ? .red : .white)
+                            VStack(spacing: 4) {
+                                Image(systemName: currentPhoto?.isFavorite == true ? "heart.fill" : "heart")
+                                    .font(.system(size: 20))
+                                Text("Yêu thích")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(currentPhoto?.isFavorite == true ? .red : .white)
                         }
                         
+                        // 4. Xóa
                         Button(action: { isDeleteAlertPresented = true }) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 22))
-                                .foregroundColor(.red)
+                            VStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 20))
+                                Text("Xóa")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(.red)
                         }
                     }
-                    .padding(.vertical, 14)
-                    .padding(.horizontal, 40)
-                    .background(Color.black.opacity(0.5))
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 28)
+                    .background(Color.black.opacity(0.6))
                     .cornerRadius(28)
                     .padding(.bottom, 36)
                 }
@@ -131,7 +169,7 @@ public struct FullScreenPhotoViewer: View {
                 preloadAdjacentImages(for: initialIndex)
             }
         }
-        .alert("Xóa Ảnh Khỏi Kho", isPresented: $isDeleteAlertPresented) {
+        .alert("Xóa Khỏi Kho", isPresented: $isDeleteAlertPresented) {
             Button("Chuyển Vào Thùng Rác", role: .destructive) {
                 if let photo = currentPhoto {
                     PhotoStorageManager.shared.deletePhoto(id: photo.id, permanent: false)
@@ -140,12 +178,15 @@ public struct FullScreenPhotoViewer: View {
             }
             Button("Hủy", role: .cancel) {}
         } message: {
-            Text("Bức ảnh sẽ được chuyển vào mục Thùng rác (Trash). Bạn có thể khôi phục lại trong Cài đặt.")
+            Text("Mục này sẽ được chuyển vào mục Thùng rác (Trash). Bạn có thể khôi phục lại trong Cài đặt.")
+        }
+        .alert("Thông Báo", isPresented: $isStatusAlertPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertMessage)
         }
         .sheet(isPresented: $isShareSheetPresented) {
-            if let img = shareItem {
-                ActivityView(activityItems: [img])
-            }
+            ActivityView(activityItems: shareItems)
         }
     }
     
@@ -161,29 +202,53 @@ public struct FullScreenPhotoViewer: View {
         PhotoStorageManager.shared.saveMetadata()
     }
     
-    private func shareCurrentPhoto() {
-        guard let photo = currentPhoto else { return }
-        if let img = fullImages[photo.id] {
-            shareItem = img
+    /// Lưu 1 ảnh hoặc 1 video hiện tại ra Thư viện Photos của máy
+    private func exportCurrentToPhotos() {
+        guard let item = currentPhoto else { return }
+        Task {
+            let result = await ExportBackupManager.shared.exportMediaToPhotosLibrary(items: [item])
+            await MainActor.run {
+                if result.successCount > 0 {
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+                    alertMessage = "Đã lưu thành công vào Thư viện ảnh Photos iPhone!"
+                } else {
+                    alertMessage = "Không thể lưu vào Photos. Vui lòng cấp quyền trong Cài đặt máy."
+                }
+                isStatusAlertPresented = true
+            }
+        }
+    }
+    
+    private func shareCurrentMedia() {
+        guard let item = currentPhoto else { return }
+        if item.isVideo {
+            let videoURL = PhotoStorageManager.shared.vaultDirectory.appendingPathComponent(item.encryptedFileName)
+            shareItems = [videoURL]
             isShareSheetPresented = true
         } else {
-            Task {
-                if let loaded = await PhotoStorageManager.shared.loadFullImage(for: photo) {
-                    await MainActor.run {
-                        shareItem = loaded
-                        isShareSheetPresented = true
+            if let img = fullImages[item.id] {
+                shareItems = [img]
+                isShareSheetPresented = true
+            } else {
+                Task {
+                    if let loaded = await PhotoStorageManager.shared.loadFullImage(for: item) {
+                        await MainActor.run {
+                            shareItems = [loaded]
+                            isShareSheetPresented = true
+                        }
                     }
                 }
             }
         }
     }
     
-    /// Giải mã trước (Preload Pipeline) ảnh hiện tại và các ảnh liền kề (index - 1, index + 1)
     private func preloadAdjacentImages(for index: Int) {
         let indicesToLoad = [index, index - 1, index + 1].filter { $0 >= 0 && $0 < photos.count }
         
         for idx in indicesToLoad {
             let photo = photos[idx]
+            if photo.isVideo { continue }
             if fullImages[photo.id] != nil { continue }
             
             Task {
@@ -195,16 +260,4 @@ public struct FullScreenPhotoViewer: View {
             }
         }
     }
-}
-
-/// Helper hiển thị native UIActivityViewController để chia sẻ ảnh
-struct ActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    let applicationActivities: [UIActivity]? = nil
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

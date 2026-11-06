@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Ô hiển thị thumbnail ảnh siêu tốc độ, giải mã bất đồng bộ và lưu đệm bộ nhớ thông minh
+/// Ô hiển thị thumbnail ảnh & video siêu tốc độ, giải mã bất đồng bộ và lưu đệm bộ nhớ thông minh
 public struct PhotoThumbnailView: View {
     public let photo: EncryptedPhoto
     public let isSelected: Bool
     public let isSelectionMode: Bool
+    public var onLongPress: (() -> Void)? = nil
     
     @State private var thumbnailImage: UIImage? = nil
     @State private var isLoading: Bool = true
@@ -12,16 +13,19 @@ public struct PhotoThumbnailView: View {
     public init(
         photo: EncryptedPhoto,
         isSelected: Bool = false,
-        isSelectionMode: Bool = false
+        isSelectionMode: Bool = false,
+        onLongPress: (() -> Void)? = nil
     ) {
         self.photo = photo
         self.isSelected = isSelected
         self.isSelectionMode = isSelectionMode
+        self.onLongPress = onLongPress
     }
     
     public var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topTrailing) {
+                // Ảnh thumbnail
                 if let image = thumbnailImage {
                     Image(uiImage: image)
                         .resizable()
@@ -29,17 +33,37 @@ public struct PhotoThumbnailView: View {
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                 } else {
-                    // Placeholder mượt mà trong lúc giải mã từ file mã hóa
                     Rectangle()
                         .fill(Color(UIColor.secondarySystemBackground))
                         .overlay(
-                            Image(systemName: "photo")
+                            Image(systemName: photo.isVideo ? "video" : "photo")
                                 .font(.system(size: 20))
                                 .foregroundColor(.gray.opacity(0.4))
                         )
                 }
                 
-                // Overlay chế độ chọn nhiều ảnh (Multi-Select)
+                // Badge hiển thị thời lượng nếu là Video ở góc dưới bên phải
+                if photo.isVideo {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(.white)
+                            Text(photo.formattedDuration)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(4)
+                        .padding(4)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .bottomTrailing)
+                }
+                
+                // Checkbox chế độ chọn nhiều ảnh/video (Multi-Select)
                 if isSelectionMode {
                     ZStack {
                         Circle()
@@ -62,13 +86,16 @@ public struct PhotoThumbnailView: View {
         }
         .aspectRatio(1.0, contentMode: .fit)
         .cornerRadius(6)
+        .contentShape(Rectangle())
+        .onLongPressGesture {
+            onLongPress?()
+        }
         .onAppear {
             loadThumbnail()
         }
     }
     
     private func loadThumbnail() {
-        // Kiểm tra RAM cache trước
         if let cached = VaultCacheManager.shared.getThumbnail(for: photo.id.uuidString) {
             self.thumbnailImage = cached
             self.isLoading = false

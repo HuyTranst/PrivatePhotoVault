@@ -17,28 +17,33 @@
 		A10000082C9F000000000001 /* CryptoEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000082C9F000000000001 /* CryptoEngine.swift */; };
 		A10000092C9F000000000001 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000092C9F000000000001 /* KeychainHelper.swift */; };
 		A10000102C9F000000000001 /* AlbumManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000102C9F000000000001 /* AlbumManager.swift */; };
-		A10000112C9F000000000001 /* PhotoStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C9F000000000001 /* PhotoStorageManager.swift */; };
-		A10000122C9F000000000001 /* VaultCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000122C9F000000000001 /* VaultCacheManager.swift */; };
-		A10000132C9F000000000001 /* BottomNavigationBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000132C9F000000000001 /* BottomNavigationBar.swift */; };
-		A10000142C9F000000000001 /* PhotoPickerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000142C9F000000000001 /* PhotoPickerCoordinator.swift */; };
-		A10000152C9F000000000001 /* DecoyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000152C9F000000000001 /* DecoyView.swift */; };
-		A10000162C9F000000000001 /* PasswordEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000162C9F000000000001 /* PasswordEntryView.swift */; };
-		A10000172C9F000000000001 /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C9F000000000001 /* AlbumDetailView.swift */; };
-		A10000182C9F000000000001 /* CreateAlbumSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C9F000000000001 /* CreateAlbumSheet.swift */; };
-		A10000192C9F000000000001 /* MainAlbumsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C9F000000000001 /* MainAlbumsView.swift */; };
-		A10000202C9F000000000001 /* PhotoThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000202C9F000000000001 /* PhotoThumbnailView.swift */; };
-		A10000212C9F000000000001 /* AboutAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000212C9F000000000001 /* AboutAppView.swift */; };
-		A10000222C9F000000000001 /* AccountStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C9F000000000001 /* AccountStatusView.swift */; };
-		A10000232C9F000000000001 /* AddingToVaultSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C9F000000000001 /* AddingToVaultSettingsView.swift */; };
-		A10000242C9F000000000001 /* AlertsAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C9F000000000001 /* AlertsAuditView.swift */; };
-		A10000252C9F000000000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C9F000000000001 /* AppearanceSettingsView.swift */; };
-		A10000262C9F000000000001 /* BackupAndSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000262C9F000000000001 /* BackupAndSyncView.swift */; };
-		A10000272C9F000000000001 /* LockScreenSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C9F000000000001 /* LockScreenSettingsView.swift */; };
-		A10000282C9F000000000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C9F000000000001 /* SettingsView.swift */; };
-		A10000292C9F000000000001 /* StorageAndCacheView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000292C9F000000000001 /* StorageAndCacheView.swift */; };
-		A10000302C9F000000000001 /* TrashManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C9F000000000001 /* TrashManagementView.swift */; };
-		A10000312C9F000000000001 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C9F000000000001 /* FullScreenPhotoViewer.swift */; };
-		A10000322C9F000000000001 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000322C9F000000000001 /* ZoomableImageView.swift */; };
+		A10000112C9F000000000001 /* ExportBackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000112C9F000000000001 /* ExportBackupManager.swift */; };
+		A10000122C9F000000000001 /* PhotoStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000122C9F000000000001 /* PhotoStorageManager.swift */; };
+		A10000132C9F000000000001 /* VaultCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000132C9F000000000001 /* VaultCacheManager.swift */; };
+		A10000142C9F000000000001 /* ZipArchiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000142C9F000000000001 /* ZipArchiver.swift */; };
+		A10000152C9F000000000001 /* BottomNavigationBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000152C9F000000000001 /* BottomNavigationBar.swift */; };
+		A10000162C9F000000000001 /* DocumentExporterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000162C9F000000000001 /* DocumentExporterView.swift */; };
+		A10000172C9F000000000001 /* ExportProgressSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000172C9F000000000001 /* ExportProgressSheet.swift */; };
+		A10000182C9F000000000001 /* PhotoPickerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000182C9F000000000001 /* PhotoPickerCoordinator.swift */; };
+		A10000192C9F000000000001 /* DecoyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000192C9F000000000001 /* DecoyView.swift */; };
+		A10000202C9F000000000001 /* PasswordEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000202C9F000000000001 /* PasswordEntryView.swift */; };
+		A10000212C9F000000000001 /* AlbumDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000212C9F000000000001 /* AlbumDetailView.swift */; };
+		A10000222C9F000000000001 /* CreateAlbumSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000222C9F000000000001 /* CreateAlbumSheet.swift */; };
+		A10000232C9F000000000001 /* MainAlbumsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000232C9F000000000001 /* MainAlbumsView.swift */; };
+		A10000242C9F000000000001 /* PhotoThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000242C9F000000000001 /* PhotoThumbnailView.swift */; };
+		A10000252C9F000000000001 /* AboutAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000252C9F000000000001 /* AboutAppView.swift */; };
+		A10000262C9F000000000001 /* AccountStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000262C9F000000000001 /* AccountStatusView.swift */; };
+		A10000272C9F000000000001 /* AddingToVaultSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000272C9F000000000001 /* AddingToVaultSettingsView.swift */; };
+		A10000282C9F000000000001 /* AlertsAuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000282C9F000000000001 /* AlertsAuditView.swift */; };
+		A10000292C9F000000000001 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000292C9F000000000001 /* AppearanceSettingsView.swift */; };
+		A10000302C9F000000000001 /* BackupAndSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000302C9F000000000001 /* BackupAndSyncView.swift */; };
+		A10000312C9F000000000001 /* LockScreenSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000312C9F000000000001 /* LockScreenSettingsView.swift */; };
+		A10000322C9F000000000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000322C9F000000000001 /* SettingsView.swift */; };
+		A10000332C9F000000000001 /* StorageAndCacheView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000332C9F000000000001 /* StorageAndCacheView.swift */; };
+		A10000342C9F000000000001 /* TrashManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000342C9F000000000001 /* TrashManagementView.swift */; };
+		A10000352C9F000000000001 /* ZipBackupManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000352C9F000000000001 /* ZipBackupManagementView.swift */; };
+		A10000362C9F000000000001 /* FullScreenPhotoViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000362C9F000000000001 /* FullScreenPhotoViewer.swift */; };
+		A10000372C9F000000000001 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000372C9F000000000001 /* ZoomableImageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,28 +58,33 @@
 		B10000082C9F000000000001 /* CryptoEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CryptoEngine.swift"; path = "Security/CryptoEngine.swift"; sourceTree = "<group>"; };
 		B10000092C9F000000000001 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "KeychainHelper.swift"; path = "Security/KeychainHelper.swift"; sourceTree = "<group>"; };
 		B10000102C9F000000000001 /* AlbumManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AlbumManager.swift"; path = "Storage/AlbumManager.swift"; sourceTree = "<group>"; };
-		B10000112C9F000000000001 /* PhotoStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoStorageManager.swift"; path = "Storage/PhotoStorageManager.swift"; sourceTree = "<group>"; };
-		B10000122C9F000000000001 /* VaultCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VaultCacheManager.swift"; path = "Storage/VaultCacheManager.swift"; sourceTree = "<group>"; };
-		B10000132C9F000000000001 /* BottomNavigationBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BottomNavigationBar.swift"; path = "UI/Components/BottomNavigationBar.swift"; sourceTree = "<group>"; };
-		B10000142C9F000000000001 /* PhotoPickerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoPickerCoordinator.swift"; path = "UI/Components/PhotoPickerCoordinator.swift"; sourceTree = "<group>"; };
-		B10000152C9F000000000001 /* DecoyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DecoyView.swift"; path = "UI/Decoy/DecoyView.swift"; sourceTree = "<group>"; };
-		B10000162C9F000000000001 /* PasswordEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PasswordEntryView.swift"; path = "UI/Decoy/PasswordEntryView.swift"; sourceTree = "<group>"; };
-		B10000172C9F000000000001 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AlbumDetailView.swift"; path = "UI/Gallery/AlbumDetailView.swift"; sourceTree = "<group>"; };
-		B10000182C9F000000000001 /* CreateAlbumSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CreateAlbumSheet.swift"; path = "UI/Gallery/CreateAlbumSheet.swift"; sourceTree = "<group>"; };
-		B10000192C9F000000000001 /* MainAlbumsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MainAlbumsView.swift"; path = "UI/Gallery/MainAlbumsView.swift"; sourceTree = "<group>"; };
-		B10000202C9F000000000001 /* PhotoThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoThumbnailView.swift"; path = "UI/Gallery/PhotoThumbnailView.swift"; sourceTree = "<group>"; };
-		B10000212C9F000000000001 /* AboutAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AboutAppView.swift"; path = "UI/Settings/AboutAppView.swift"; sourceTree = "<group>"; };
-		B10000222C9F000000000001 /* AccountStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AccountStatusView.swift"; path = "UI/Settings/AccountStatusView.swift"; sourceTree = "<group>"; };
-		B10000232C9F000000000001 /* AddingToVaultSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AddingToVaultSettingsView.swift"; path = "UI/Settings/AddingToVaultSettingsView.swift"; sourceTree = "<group>"; };
-		B10000242C9F000000000001 /* AlertsAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AlertsAuditView.swift"; path = "UI/Settings/AlertsAuditView.swift"; sourceTree = "<group>"; };
-		B10000252C9F000000000001 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppearanceSettingsView.swift"; path = "UI/Settings/AppearanceSettingsView.swift"; sourceTree = "<group>"; };
-		B10000262C9F000000000001 /* BackupAndSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BackupAndSyncView.swift"; path = "UI/Settings/BackupAndSyncView.swift"; sourceTree = "<group>"; };
-		B10000272C9F000000000001 /* LockScreenSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LockScreenSettingsView.swift"; path = "UI/Settings/LockScreenSettingsView.swift"; sourceTree = "<group>"; };
-		B10000282C9F000000000001 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SettingsView.swift"; path = "UI/Settings/SettingsView.swift"; sourceTree = "<group>"; };
-		B10000292C9F000000000001 /* StorageAndCacheView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StorageAndCacheView.swift"; path = "UI/Settings/StorageAndCacheView.swift"; sourceTree = "<group>"; };
-		B10000302C9F000000000001 /* TrashManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TrashManagementView.swift"; path = "UI/Settings/TrashManagementView.swift"; sourceTree = "<group>"; };
-		B10000312C9F000000000001 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "FullScreenPhotoViewer.swift"; path = "UI/Viewer/FullScreenPhotoViewer.swift"; sourceTree = "<group>"; };
-		B10000322C9F000000000001 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ZoomableImageView.swift"; path = "UI/Viewer/ZoomableImageView.swift"; sourceTree = "<group>"; };
+		B10000112C9F000000000001 /* ExportBackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExportBackupManager.swift"; path = "Storage/ExportBackupManager.swift"; sourceTree = "<group>"; };
+		B10000122C9F000000000001 /* PhotoStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoStorageManager.swift"; path = "Storage/PhotoStorageManager.swift"; sourceTree = "<group>"; };
+		B10000132C9F000000000001 /* VaultCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VaultCacheManager.swift"; path = "Storage/VaultCacheManager.swift"; sourceTree = "<group>"; };
+		B10000142C9F000000000001 /* ZipArchiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ZipArchiver.swift"; path = "Storage/ZipArchiver.swift"; sourceTree = "<group>"; };
+		B10000152C9F000000000001 /* BottomNavigationBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BottomNavigationBar.swift"; path = "UI/Components/BottomNavigationBar.swift"; sourceTree = "<group>"; };
+		B10000162C9F000000000001 /* DocumentExporterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DocumentExporterView.swift"; path = "UI/Components/DocumentExporterView.swift"; sourceTree = "<group>"; };
+		B10000172C9F000000000001 /* ExportProgressSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ExportProgressSheet.swift"; path = "UI/Components/ExportProgressSheet.swift"; sourceTree = "<group>"; };
+		B10000182C9F000000000001 /* PhotoPickerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoPickerCoordinator.swift"; path = "UI/Components/PhotoPickerCoordinator.swift"; sourceTree = "<group>"; };
+		B10000192C9F000000000001 /* DecoyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "DecoyView.swift"; path = "UI/Decoy/DecoyView.swift"; sourceTree = "<group>"; };
+		B10000202C9F000000000001 /* PasswordEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PasswordEntryView.swift"; path = "UI/Decoy/PasswordEntryView.swift"; sourceTree = "<group>"; };
+		B10000212C9F000000000001 /* AlbumDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AlbumDetailView.swift"; path = "UI/Gallery/AlbumDetailView.swift"; sourceTree = "<group>"; };
+		B10000222C9F000000000001 /* CreateAlbumSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "CreateAlbumSheet.swift"; path = "UI/Gallery/CreateAlbumSheet.swift"; sourceTree = "<group>"; };
+		B10000232C9F000000000001 /* MainAlbumsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "MainAlbumsView.swift"; path = "UI/Gallery/MainAlbumsView.swift"; sourceTree = "<group>"; };
+		B10000242C9F000000000001 /* PhotoThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PhotoThumbnailView.swift"; path = "UI/Gallery/PhotoThumbnailView.swift"; sourceTree = "<group>"; };
+		B10000252C9F000000000001 /* AboutAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AboutAppView.swift"; path = "UI/Settings/AboutAppView.swift"; sourceTree = "<group>"; };
+		B10000262C9F000000000001 /* AccountStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AccountStatusView.swift"; path = "UI/Settings/AccountStatusView.swift"; sourceTree = "<group>"; };
+		B10000272C9F000000000001 /* AddingToVaultSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AddingToVaultSettingsView.swift"; path = "UI/Settings/AddingToVaultSettingsView.swift"; sourceTree = "<group>"; };
+		B10000282C9F000000000001 /* AlertsAuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AlertsAuditView.swift"; path = "UI/Settings/AlertsAuditView.swift"; sourceTree = "<group>"; };
+		B10000292C9F000000000001 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppearanceSettingsView.swift"; path = "UI/Settings/AppearanceSettingsView.swift"; sourceTree = "<group>"; };
+		B10000302C9F000000000001 /* BackupAndSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "BackupAndSyncView.swift"; path = "UI/Settings/BackupAndSyncView.swift"; sourceTree = "<group>"; };
+		B10000312C9F000000000001 /* LockScreenSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "LockScreenSettingsView.swift"; path = "UI/Settings/LockScreenSettingsView.swift"; sourceTree = "<group>"; };
+		B10000322C9F000000000001 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "SettingsView.swift"; path = "UI/Settings/SettingsView.swift"; sourceTree = "<group>"; };
+		B10000332C9F000000000001 /* StorageAndCacheView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StorageAndCacheView.swift"; path = "UI/Settings/StorageAndCacheView.swift"; sourceTree = "<group>"; };
+		B10000342C9F000000000001 /* TrashManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TrashManagementView.swift"; path = "UI/Settings/TrashManagementView.swift"; sourceTree = "<group>"; };
+		B10000352C9F000000000001 /* ZipBackupManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ZipBackupManagementView.swift"; path = "UI/Settings/ZipBackupManagementView.swift"; sourceTree = "<group>"; };
+		B10000362C9F000000000001 /* FullScreenPhotoViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "FullScreenPhotoViewer.swift"; path = "UI/Viewer/FullScreenPhotoViewer.swift"; sourceTree = "<group>"; };
+		B10000372C9F000000000001 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ZoomableImageView.swift"; path = "UI/Viewer/ZoomableImageView.swift"; sourceTree = "<group>"; };
 		B19999982C9F000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info.plist"; path = "Resources/Info.plist"; sourceTree = "<group>"; };
 		B19999992C9F000000000001 /* entitlements.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "entitlements.plist"; path = "Resources/entitlements.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -111,28 +121,33 @@
 				B10000082C9F000000000001 /* CryptoEngine.swift */,
 				B10000092C9F000000000001 /* KeychainHelper.swift */,
 				B10000102C9F000000000001 /* AlbumManager.swift */,
-				B10000112C9F000000000001 /* PhotoStorageManager.swift */,
-				B10000122C9F000000000001 /* VaultCacheManager.swift */,
-				B10000132C9F000000000001 /* BottomNavigationBar.swift */,
-				B10000142C9F000000000001 /* PhotoPickerCoordinator.swift */,
-				B10000152C9F000000000001 /* DecoyView.swift */,
-				B10000162C9F000000000001 /* PasswordEntryView.swift */,
-				B10000172C9F000000000001 /* AlbumDetailView.swift */,
-				B10000182C9F000000000001 /* CreateAlbumSheet.swift */,
-				B10000192C9F000000000001 /* MainAlbumsView.swift */,
-				B10000202C9F000000000001 /* PhotoThumbnailView.swift */,
-				B10000212C9F000000000001 /* AboutAppView.swift */,
-				B10000222C9F000000000001 /* AccountStatusView.swift */,
-				B10000232C9F000000000001 /* AddingToVaultSettingsView.swift */,
-				B10000242C9F000000000001 /* AlertsAuditView.swift */,
-				B10000252C9F000000000001 /* AppearanceSettingsView.swift */,
-				B10000262C9F000000000001 /* BackupAndSyncView.swift */,
-				B10000272C9F000000000001 /* LockScreenSettingsView.swift */,
-				B10000282C9F000000000001 /* SettingsView.swift */,
-				B10000292C9F000000000001 /* StorageAndCacheView.swift */,
-				B10000302C9F000000000001 /* TrashManagementView.swift */,
-				B10000312C9F000000000001 /* FullScreenPhotoViewer.swift */,
-				B10000322C9F000000000001 /* ZoomableImageView.swift */,
+				B10000112C9F000000000001 /* ExportBackupManager.swift */,
+				B10000122C9F000000000001 /* PhotoStorageManager.swift */,
+				B10000132C9F000000000001 /* VaultCacheManager.swift */,
+				B10000142C9F000000000001 /* ZipArchiver.swift */,
+				B10000152C9F000000000001 /* BottomNavigationBar.swift */,
+				B10000162C9F000000000001 /* DocumentExporterView.swift */,
+				B10000172C9F000000000001 /* ExportProgressSheet.swift */,
+				B10000182C9F000000000001 /* PhotoPickerCoordinator.swift */,
+				B10000192C9F000000000001 /* DecoyView.swift */,
+				B10000202C9F000000000001 /* PasswordEntryView.swift */,
+				B10000212C9F000000000001 /* AlbumDetailView.swift */,
+				B10000222C9F000000000001 /* CreateAlbumSheet.swift */,
+				B10000232C9F000000000001 /* MainAlbumsView.swift */,
+				B10000242C9F000000000001 /* PhotoThumbnailView.swift */,
+				B10000252C9F000000000001 /* AboutAppView.swift */,
+				B10000262C9F000000000001 /* AccountStatusView.swift */,
+				B10000272C9F000000000001 /* AddingToVaultSettingsView.swift */,
+				B10000282C9F000000000001 /* AlertsAuditView.swift */,
+				B10000292C9F000000000001 /* AppearanceSettingsView.swift */,
+				B10000302C9F000000000001 /* BackupAndSyncView.swift */,
+				B10000312C9F000000000001 /* LockScreenSettingsView.swift */,
+				B10000322C9F000000000001 /* SettingsView.swift */,
+				B10000332C9F000000000001 /* StorageAndCacheView.swift */,
+				B10000342C9F000000000001 /* TrashManagementView.swift */,
+				B10000352C9F000000000001 /* ZipBackupManagementView.swift */,
+				B10000362C9F000000000001 /* FullScreenPhotoViewer.swift */,
+				B10000372C9F000000000001 /* ZoomableImageView.swift */,
 				B19999982C9F000000000001 /* Info.plist */,
 				B19999992C9F000000000001 /* entitlements.plist */,
 			);
@@ -214,28 +229,33 @@
 				A10000082C9F000000000001 /* CryptoEngine.swift in Sources */,
 				A10000092C9F000000000001 /* KeychainHelper.swift in Sources */,
 				A10000102C9F000000000001 /* AlbumManager.swift in Sources */,
-				A10000112C9F000000000001 /* PhotoStorageManager.swift in Sources */,
-				A10000122C9F000000000001 /* VaultCacheManager.swift in Sources */,
-				A10000132C9F000000000001 /* BottomNavigationBar.swift in Sources */,
-				A10000142C9F000000000001 /* PhotoPickerCoordinator.swift in Sources */,
-				A10000152C9F000000000001 /* DecoyView.swift in Sources */,
-				A10000162C9F000000000001 /* PasswordEntryView.swift in Sources */,
-				A10000172C9F000000000001 /* AlbumDetailView.swift in Sources */,
-				A10000182C9F000000000001 /* CreateAlbumSheet.swift in Sources */,
-				A10000192C9F000000000001 /* MainAlbumsView.swift in Sources */,
-				A10000202C9F000000000001 /* PhotoThumbnailView.swift in Sources */,
-				A10000212C9F000000000001 /* AboutAppView.swift in Sources */,
-				A10000222C9F000000000001 /* AccountStatusView.swift in Sources */,
-				A10000232C9F000000000001 /* AddingToVaultSettingsView.swift in Sources */,
-				A10000242C9F000000000001 /* AlertsAuditView.swift in Sources */,
-				A10000252C9F000000000001 /* AppearanceSettingsView.swift in Sources */,
-				A10000262C9F000000000001 /* BackupAndSyncView.swift in Sources */,
-				A10000272C9F000000000001 /* LockScreenSettingsView.swift in Sources */,
-				A10000282C9F000000000001 /* SettingsView.swift in Sources */,
-				A10000292C9F000000000001 /* StorageAndCacheView.swift in Sources */,
-				A10000302C9F000000000001 /* TrashManagementView.swift in Sources */,
-				A10000312C9F000000000001 /* FullScreenPhotoViewer.swift in Sources */,
-				A10000322C9F000000000001 /* ZoomableImageView.swift in Sources */,
+				A10000112C9F000000000001 /* ExportBackupManager.swift in Sources */,
+				A10000122C9F000000000001 /* PhotoStorageManager.swift in Sources */,
+				A10000132C9F000000000001 /* VaultCacheManager.swift in Sources */,
+				A10000142C9F000000000001 /* ZipArchiver.swift in Sources */,
+				A10000152C9F000000000001 /* BottomNavigationBar.swift in Sources */,
+				A10000162C9F000000000001 /* DocumentExporterView.swift in Sources */,
+				A10000172C9F000000000001 /* ExportProgressSheet.swift in Sources */,
+				A10000182C9F000000000001 /* PhotoPickerCoordinator.swift in Sources */,
+				A10000192C9F000000000001 /* DecoyView.swift in Sources */,
+				A10000202C9F000000000001 /* PasswordEntryView.swift in Sources */,
+				A10000212C9F000000000001 /* AlbumDetailView.swift in Sources */,
+				A10000222C9F000000000001 /* CreateAlbumSheet.swift in Sources */,
+				A10000232C9F000000000001 /* MainAlbumsView.swift in Sources */,
+				A10000242C9F000000000001 /* PhotoThumbnailView.swift in Sources */,
+				A10000252C9F000000000001 /* AboutAppView.swift in Sources */,
+				A10000262C9F000000000001 /* AccountStatusView.swift in Sources */,
+				A10000272C9F000000000001 /* AddingToVaultSettingsView.swift in Sources */,
+				A10000282C9F000000000001 /* AlertsAuditView.swift in Sources */,
+				A10000292C9F000000000001 /* AppearanceSettingsView.swift in Sources */,
+				A10000302C9F000000000001 /* BackupAndSyncView.swift in Sources */,
+				A10000312C9F000000000001 /* LockScreenSettingsView.swift in Sources */,
+				A10000322C9F000000000001 /* SettingsView.swift in Sources */,
+				A10000332C9F000000000001 /* StorageAndCacheView.swift in Sources */,
+				A10000342C9F000000000001 /* TrashManagementView.swift in Sources */,
+				A10000352C9F000000000001 /* ZipBackupManagementView.swift in Sources */,
+				A10000362C9F000000000001 /* FullScreenPhotoViewer.swift in Sources */,
+				A10000372C9F000000000001 /* ZoomableImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

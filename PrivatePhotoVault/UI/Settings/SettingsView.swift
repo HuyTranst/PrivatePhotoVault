@@ -120,7 +120,6 @@ public struct SettingsView: View {
                                             
                                             Spacer()
                                             
-                                            // Badge số lượng ảnh trong thùng rác
                                             Text("\(trashCount > 0 ? "\(trashCount)" : "208")")
                                                 .font(.system(size: 13, weight: .bold))
                                                 .foregroundColor(.white)
@@ -152,7 +151,6 @@ public struct SettingsView: View {
                                             
                                             Spacer()
                                             
-                                            // Badge số lượng cảnh báo (mặc định 0 chuẩn bảo mật)
                                             Text("0")
                                                 .font(.system(size: 13, weight: .bold))
                                                 .foregroundColor(.gray)
@@ -207,7 +205,7 @@ public struct SettingsView: View {
                                 }
                                 Divider().padding(.leading, 50)
                                 
-                                // 4. Secondary Vault / Storage
+                                // 4. Secondary Vault & Storage
                                 NavigationLink(destination: StorageAndCacheView()) {
                                     SettingsRow(
                                         icon: "rectangle.split.2x1",
@@ -225,7 +223,16 @@ public struct SettingsView: View {
                                 }
                                 Divider().padding(.leading, 50)
                                 
-                                // 6. Help & Info
+                                // 6. Quản Lý File Sao Lưu ZIP (Mới)
+                                NavigationLink(destination: ZipBackupManagementView()) {
+                                    SettingsRow(
+                                        icon: "archivebox.fill",
+                                        title: "ZIP Backups & Export"
+                                    )
+                                }
+                                Divider().padding(.leading, 50)
+                                
+                                // 7. Help & Info
                                 NavigationLink(destination: AboutAppView()) {
                                     SettingsRow(
                                         icon: "questionmark.circle",
@@ -234,7 +241,7 @@ public struct SettingsView: View {
                                 }
                                 Divider().padding(.leading, 50)
                                 
-                                // 7. Exit Application
+                                // 8. Exit Application
                                 Button(action: {
                                     isPresented = false
                                     appState.lockVaultAndReset()
@@ -277,32 +284,5 @@ public struct SettingsView: View {
                 }
             }
         }
-    }
-}
-
-/// Dòng hiển thị mục Cài đặt chuẩn cauhinh.jpg
-struct SettingsRow: View {
-    let icon: String
-    let title: String
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 19))
-                .foregroundColor(.primary)
-                .frame(width: 24)
-            
-            Text(title)
-                .font(.system(size: 16, weight: .regular))
-                .foregroundColor(.primary)
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary.opacity(0.4))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
     }
 }

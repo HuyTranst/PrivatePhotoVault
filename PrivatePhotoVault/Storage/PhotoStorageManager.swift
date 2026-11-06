@@ -1,8 +1,9 @@
 import Foundation
 import UIKit
 import Photos
+import AVFoundation
 
-/// Quản lý toàn bộ tiến trình mã hóa lưu trữ, giải mã bất đồng bộ và siêu dữ liệu ảnh
+/// Quản lý toàn bộ tiến trình mã hóa lưu trữ, giải mã bất đồng bộ và siêu dữ liệu ảnh & video
 public final class PhotoStorageManager: ObservableObject {
     public static let shared = PhotoStorageManager()
     
@@ -11,15 +12,14 @@ public final class PhotoStorageManager: ObservableObject {
     private let fileManager = FileManager.default
     private let metadataFileName = "vault_photos_meta.json"
     
-    /// Thư mục bảo mật Documents/Vault lưu toàn bộ file mã hóa
-    private var vaultDirectory: URL {
+    /// Thư mục bảo mật Documents/Vault lưu toàn bộ file mã hóa ảnh và video
+    public var vaultDirectory: URL {
         let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let vault = docs.appendingPathComponent("Vault", isDirectory: true)
         if !fileManager.fileExists(atPath: vault.path) {
             try? fileManager.createDirectory(at: vault, withIntermediateDirectories: true, attributes: [
                 FileAttributeKey.protectionKey: FileProtectionType.completeUnlessOpen
             ])
-            // Đánh dấu không đồng bộ lên iCloud tự động để bảo đảm tính bí mật
             var resourceValues = URLResourceValues()
             resourceValues.isExcludedFromBackup = true
             var mutableVault = vault
@@ -42,7 +42,6 @@ public final class PhotoStorageManager: ObservableObject {
         guard fileManager.fileExists(atPath: metadataURL.path) else { return }
         do {
             let data = try Data(contentsOf: metadataURL)
-            // Giải mã file metadata (nếu đã mã hóa) hoặc đọc trực tiếp JSON
             if let decrypted = try? CryptoEngine.shared.decrypt(combinedData: data) {
                 let decoded = try JSONDecoder().decode([EncryptedPhoto].self, from: decrypted)
                 self.photos = decoded
@@ -51,7 +50,7 @@ public final class PhotoStorageManager: ObservableObject {
                 self.photos = decoded
             }
         } catch {
-            print("Lỗi nạp metadata ảnh: \(error.localizedDescription)")
+            print("Lỗi nạp metadata: \(error.localizedDescription)")
         }
     }
     
@@ -61,14 +60,18 @@ public final class PhotoStorageManager: ObservableObject {
             let encrypted = try CryptoEngine.shared.encrypt(data: encoded)
             try encrypted.write(to: metadataURL, options: .atomic)
         } catch {
-            print("Lỗi lưu metadata ảnh: \(error.localizedDescription)")
+            print("Lỗi lưu metadata: \(error.localizedDescription)")
         }
     }
     
-    // MARK: - Import & Encryption Pipeline
+    // MARK: - Import & Encryption Pipeline (Photo)
     
     /// Mã hóa và lưu ảnh mới vào kho bí mật với thumbnail hiệu năng cao
-    public func importAndEncryptPhoto(image: UIImage, albumId: UUID) async throws -> EncryptedPhoto {
+    public func importAndEncryptPhoto(
+        image: UIImage,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
         return try await Task.detached(priority: .userInitiated) {
             let id = UUID()
             let fullEncFileName = "\(id.uuidString).enc"
@@ -84,7 +87,7 @@ public final class PhotoStorageManager: ObservableObject {
                 throw CryptoEngine.CryptoError.encryptionFailed("Không thể nén dữ liệu thumbnail.")
             }
             
-            // Mã hóa Thumbnail
+            // Mã hóa Thumbnail bằng AES-256-GCM
             let encryptedThumb = try CryptoEngine.shared.encrypt(data: thumbData)
             try encryptedThumb.write(to: thumbFileURL, options: .atomic)
             
@@ -102,8 +105,11 @@ public final class PhotoStorageManager: ObservableObject {
             
             let photo = EncryptedPhoto(
                 id: id,
+                mediaType: .photo,
                 encryptedFileName: fullEncFileName,
                 thumbnailFileName: thumbEncFileName,
+                originalFileName: originalFileName ?? "IMG_\(id.uuidString.prefix(6)).jpg",
+                duration: nil,
                 createdAt: Date(),
                 originalWidth: image.size.width,
                 originalHeight: image.size.height,
@@ -121,6 +127,93 @@ public final class PhotoStorageManager: ObservableObject {
             
             return photo
         }.value
+    }
+    
+    // MARK: - Import Video Pipeline
+    
+    /// Nhập video vào kho bảo mật (lưu trữ nguyên định dạng video chất lượng gốc và tạo thumbnail mã hóa)
+    public func importVideo(
+        sourceURL: URL,
+        originalFileName: String? = nil,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        return try await Task.detached(priority: .userInitiated) {
+            let id = UUID()
+            let ext = sourceURL.pathExtension.isEmpty ? "mp4" : sourceURL.pathExtension
+            let videoFileName = "\(id.uuidString).\(ext)"
+            let thumbEncFileName = "\(id.uuidString)_thumb.enc"
+            
+            let destVideoURL = self.vaultDirectory.appendingPathComponent(videoFileName)
+            let destThumbURL = self.vaultDirectory.appendingPathComponent(thumbEncFileName)
+            
+            // Sao chép file video vào thư mục bảo mật
+            if self.fileManager.fileExists(atPath: destVideoURL.path) {
+                try? self.fileManager.removeItem(at: destVideoURL)
+            }
+            try self.fileManager.copyItem(at: sourceURL, to: destVideoURL)
+            
+            // Trích xuất metadata và thumbnail từ Video
+            let asset = AVURLAsset(url: destVideoURL)
+            let durationSeconds = CMTimeGetSeconds(asset.duration)
+            
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            imageGenerator.maximumSize = CGSize(width: 400, height: 400)
+            
+            var thumbImage: UIImage = UIImage()
+            var videoWidth: CGFloat = 1920
+            var videoHeight: CGFloat = 1080
+            
+            if let cgImage = try? imageGenerator.copyCGImage(at: CMTime(seconds: 0.1, preferredTimescale: 600), actualTime: nil) {
+                thumbImage = UIImage(cgImage: cgImage)
+                videoWidth = CGFloat(cgImage.width)
+                videoHeight = CGFloat(cgImage.height)
+            }
+            
+            if let thumbData = thumbImage.jpegData(compressionQuality: 0.75) {
+                let encThumb = try CryptoEngine.shared.encrypt(data: thumbData)
+                try encThumb.write(to: destThumbURL, options: .atomic)
+                VaultCacheManager.shared.setThumbnail(thumbImage, for: id.uuidString)
+            }
+            
+            let videoSize = (try? destVideoURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            
+            let item = EncryptedPhoto(
+                id: id,
+                mediaType: .video,
+                encryptedFileName: videoFileName,
+                thumbnailFileName: thumbEncFileName,
+                originalFileName: originalFileName ?? sourceURL.lastPathComponent,
+                duration: durationSeconds.isNaN ? nil : durationSeconds,
+                createdAt: Date(),
+                originalWidth: videoWidth,
+                originalHeight: videoHeight,
+                fileSizeBytes: Int64(videoSize),
+                albumIds: [albumId],
+                isTrash: false,
+                deletedAt: nil,
+                isFavorite: false
+            )
+            
+            await MainActor.run {
+                self.photos.insert(item, at: 0)
+                self.saveMetadata()
+            }
+            
+            return item
+        }.value
+    }
+    
+    /// Nhập video từ Data bộ nhớ (khi restore từ ZIP)
+    public func importVideoData(
+        data: Data,
+        originalFileName: String,
+        albumId: UUID
+    ) async throws -> EncryptedPhoto {
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(originalFileName)
+        try data.write(to: tempURL, options: .atomic)
+        defer { try? fileManager.removeItem(at: tempURL) }
+        return try await importVideo(sourceURL: tempURL, originalFileName: originalFileName, albumId: albumId)
     }
     
     // MARK: - Decryption & Lazy Loading
@@ -159,9 +252,8 @@ public final class PhotoStorageManager: ObservableObject {
         }.value
     }
     
-    // MARK: - Photo Deletion & Trash Operations
+    // MARK: - Deletion & Trash Operations
     
-    /// Chuyển ảnh vào thùng rác (soft delete) hoặc xóa vĩnh viễn khỏi đĩa
     public func deletePhoto(id: UUID, permanent: Bool = false) {
         guard let index = photos.firstIndex(where: { $0.id == id }) else { return }
         
@@ -179,7 +271,6 @@ public final class PhotoStorageManager: ObservableObject {
         saveMetadata()
     }
     
-    /// Khôi phục ảnh từ Thùng rác về trạng thái hoạt động bình thường
     public func restorePhoto(id: UUID) {
         guard let index = photos.firstIndex(where: { $0.id == id }) else { return }
         photos[index].isTrash = false
@@ -187,7 +278,6 @@ public final class PhotoStorageManager: ObservableObject {
         saveMetadata()
     }
     
-    /// Xóa vĩnh viễn toàn bộ ảnh có trong Thùng rác
     public func emptyTrash() {
         let trashItems = photos.filter { $0.isTrash }
         for photo in trashItems {
@@ -202,7 +292,6 @@ public final class PhotoStorageManager: ObservableObject {
     
     // MARK: - Storage Usage Analysis
     
-    /// Phân tích dung lượng thực tế trên thiết bị
     public func calculateStorageUsage() -> (photosBytes: Int64, thumbBytes: Int64, totalBytes: Int64, freeBytes: Int64) {
         var photosSize: Int64 = 0
         var thumbSize: Int64 = 0
@@ -212,7 +301,7 @@ public final class PhotoStorageManager: ObservableObject {
                 guard let attrs = try? file.resourceValues(forKeys: [.fileSizeKey]), let size = attrs.fileSize else { continue }
                 if file.lastPathComponent.contains("_thumb") {
                     thumbSize += Int64(size)
-                } else if file.lastPathComponent.hasSuffix(".enc") {
+                } else {
                     photosSize += Int64(size)
                 }
             }
@@ -230,7 +319,7 @@ public final class PhotoStorageManager: ObservableObject {
     // MARK: - Helper Methods
     
     private func calculateThumbnailSize(originalSize: CGSize, maxDimension: CGFloat) -> CGSize {
-        let ratio = originalSize.width / originalSize.height
+        let ratio = originalSize.width / max(1, originalSize.height)
         if originalSize.width > originalSize.height {
             let newWidth = min(originalSize.width, maxDimension)
             return CGSize(width: newWidth, height: newWidth / ratio)

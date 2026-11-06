@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>get-task-allow</key>
-	<true/>
+	<false/>
 	<key>platform-application</key>
 	<true/>
 	<key>com.apple.private.security.no-sandbox</key>

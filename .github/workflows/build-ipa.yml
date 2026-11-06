@@ -41,6 +41,9 @@ jobs:
                  -framework UIKit \
                  -framework Photos \
                  -framework PhotosUI \
+                 -framework AVFoundation \
+                 -framework AVKit \
+                 -framework UniformTypeIdentifiers \
                  -framework LocalAuthentication \
                  -framework CryptoKit \
                  -framework Security \
@@ -73,7 +76,7 @@ jobs:
           # PkgInfo
           echo "APPL????" > Payload/PrivatePhotoVault.app/PkgInfo
 
-          # Entitlements
+          # Entitlements (get-task-allow = false -> No Developer Mode required!)
           if [ -f "PrivatePhotoVault/Resources/entitlements.plist" ]; then
             cp "PrivatePhotoVault/Resources/entitlements.plist" Payload/PrivatePhotoVault.app/entitlements.plist
           fi
@@ -101,7 +104,7 @@ jobs:
                    PrivatePhotoVault/Resources/Assets.xcassets || true
           fi
 
-          echo "=== Ad-Hoc & TrollStore Codesign ==="
+          echo "=== Ad-Hoc & TrollStore Codesign (No Developer Mode) ==="
           if [ -f "Payload/PrivatePhotoVault.app/entitlements.plist" ]; then
             codesign -s - -f --entitlements Payload/PrivatePhotoVault.app/entitlements.plist Payload/PrivatePhotoVault.app/PrivatePhotoVault || true
             codesign -s - -f --entitlements Payload/PrivatePhotoVault.app/entitlements.plist Payload/PrivatePhotoVault.app || true
@@ -123,16 +126,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
         with:
-          tag_name: "v1.0.0"
-          name: "Private Photo Vault iOS (TrollStore Edition) v1.0.0"
+          tag_name: "v1.1.0"
+          name: "Private Photo Vault iOS (TrollStore Edition) v1.1.0"
           body: |
-            🔒 **Bản IPA Cài Đặt Chính Thức Qua TrollStore Cho iPhone**
+            🔒 **Bản IPA Cài Đặt Chính Thức Qua TrollStore Cho iPhone (Không Cần Bật Developer Mode)**
             
-            - 🛡️ **Mã Hóa Quân Sự**: Chuẩn mã hóa phần cứng AES-256-GCM, lưu trữ khóa trong iOS Keychain.
-            - 🌐 **100% Hoạt Động Offline**: Không tài khoản, không máy chủ, không thu thập dữ liệu, vĩnh viễn không hết hạn.
-            - 🎭 **Giao Diện Ngụy Trang Tinh Vi**: Màn hình đăng nhập VCB Digibank (chạm bất kỳ để đóng app; chỉ chạm icon Thông báo mới hiện mật khẩu `36@Hamnghi`).
-            - 🖼️ **Kho Ảnh & Album Mượt Mà**: Lưới 2 cột Album (theo mẫu `xemanh.jpg`), phóng to thu nhỏ mượt mà chuẩn Apple Photos.
-            - ⚙️ **Trung Tâm Cài Đặt Đầy Đủ**: Tái hiện chuẩn xác 100% theo mẫu `cauhinh.jpg` với tính năng thực tế.
+            ✨ **Cập nhật tính năng v1.1.0 (Export, Save to Photos & ZIP Backup):**
+            - 🛡️ **Bỏ cờ Developer Mode**: Cấu hình `get-task-allow = false` chuẩn TrollStore, cài đặt là mở được ngay lập tức, không bao giờ yêu cầu bật Nhà phát triển.
+            - 💾 **Lưu ảnh & video về Photos**: Xuất trực tiếp từng ảnh/video hoặc hàng loạt về Thư viện ảnh iOS Photos native, giữ nguyên 100% chất lượng gốc.
+            - 📦 **Nén ZIP chọn lọc & toàn bộ Album**: Nén hàng loạt ảnh + video có kèm file `manifest.json` chuẩn cấu trúc `Album/Photos/` và `Album/Videos/`.
+            - 📂 **Lưu vào ứng dụng Tệp (Files)**: Mở Document Picker native lưu file ZIP vào "On My iPhone" hoặc "iCloud Drive".
+            - 🔄 **Khôi phục từ file ZIP**: Nhập và tự động giải nén, mã hóa AES-256 đưa vào Album bất kỳ.
+            - ⏱️ **Hỗ trợ đầy đủ Video**: Xem video toàn màn hình native, hiển thị thời lượng mm:ss trên thumbnail.
             
             📲 **Cài đặt cực nhanh**: Mở file `PrivatePhotoVault.ipa` bằng ứng dụng **TrollStore** trên iPhone để cài đặt ngay lập tức!
           files: PrivatePhotoVault.ipa

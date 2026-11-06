@@ -1,12 +1,14 @@
 import SwiftUI
+import Photos
 
-/// Màn hình chi tiết hiển thị toàn bộ ảnh trong một Album cụ thể
+/// Màn hình chi tiết hiển thị toàn bộ ảnh & video trong Album kèm bộ công cụ Chọn nhiều & Xuất ZIP chuyên nghiệp
 public struct AlbumDetailView: View {
     public let album: Album
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var photoStorage: PhotoStorageManager = PhotoStorageManager.shared
     @ObservedObject var albumManager: AlbumManager = AlbumManager.shared
     @ObservedObject var appState: AppState = AppState.shared
+    @ObservedObject var exportManager: ExportBackupManager = ExportBackupManager.shared
     
     @State private var isSelectionMode: Bool = false
     @State private var selectedPhotoIds: Set<UUID> = []
@@ -15,6 +17,26 @@ public struct AlbumDetailView: View {
     @State private var renameText: String = ""
     @State private var isDeleteConfirmPresented: Bool = false
     @State private var photoForViewer: EncryptedPhoto? = nil
+    
+    // Xuất & Nén ZIP State
+    @State private var isExportingProgressPresented: Bool = false
+    @State private var exportProgressTitle: String = ""
+    @State private var exportCurrentItemText: String = ""
+    @State private var exportProgressValue: Double = 0.0
+    @State private var isExportCancelled: Bool = false
+    
+    @State private var isZipNamePromptPresented: Bool = false
+    @State private var customZipName: String = ""
+    @State private var generatedZipURL: URL? = nil
+    @State private var isDocumentExporterPresented: Bool = false
+    @State private var isDocumentImporterPresented: Bool = false
+    
+    @State private var isPostExportDeletePromptPresented: Bool = false
+    @State private var exportedItemsForCleanup: [EncryptedPhoto] = []
+    
+    @State private var alertTitle: String = ""
+    @State private var alertMessage: String = ""
+    @State private var isGeneralAlertPresented: Bool = false
     
     private let columns = [
         GridItem(.flexible(), spacing: 3),
@@ -30,22 +52,76 @@ public struct AlbumDetailView: View {
         return albumManager.photos(in: album.id)
     }
     
+    private var selectedPhotos: [EncryptedPhoto] {
+        return albumPhotos.filter { selectedPhotoIds.contains($0.id) }
+    }
+    
+    private var selectedEstimatedSize: String {
+        let total = selectedPhotos.reduce(0) { $0 + $1.fileSizeBytes }
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: total)
+    }
+    
     public var body: some View {
         ZStack {
             Color(UIColor.systemBackground).ignoresSafeArea()
             
             VStack(spacing: 0) {
+                // Thanh công cụ chọn bộ lọc phụ khi ở chế độ Multi-Select
+                if isSelectionMode {
+                    HStack {
+                        Menu {
+                            Button("Chọn tất cả (\(albumPhotos.count))") {
+                                selectedPhotoIds = Set(albumPhotos.map { $0.id })
+                            }
+                            Button("Bỏ chọn tất cả") {
+                                selectedPhotoIds.removeAll()
+                            }
+                            Divider()
+                            Button("Chỉ chọn Ảnh (\(albumPhotos.filter { $0.isPhoto }.count))") {
+                                selectedPhotoIds = Set(albumPhotos.filter { $0.isPhoto }.map { $0.id })
+                            }
+                            Button("Chỉ chọn Video (\(albumPhotos.filter { $0.isVideo }.count))") {
+                                selectedPhotoIds = Set(albumPhotos.filter { $0.isVideo }.map { $0.id })
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Bộ Lọc Chọn")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10))
+                            }
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.blue.opacity(0.12))
+                            .cornerRadius(8)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("\(selectedPhotoIds.count) đã chọn • \(selectedEstimatedSize)")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.secondarySystemBackground))
+                }
+                
                 if albumPhotos.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "photo.on.rectangle.angled")
                             .font(.system(size: 64))
                             .foregroundColor(.secondary.opacity(0.5))
                         
-                        Text("Chưa Có Bức Ảnh Nào")
+                        Text("Chưa Có Ảnh Hoặc Video Nào")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                         
-                        Text("Hãy nhấn nút 'Add Picture' (+) ở thanh điều hướng để thêm ảnh mã hóa an toàn vào album này.")
+                        Text("Nhấn nút 'Add Picture' (+) ở thanh điều hướng để thêm ảnh hoặc video vào album này.")
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -59,7 +135,18 @@ public struct AlbumDetailView: View {
                                 PhotoThumbnailView(
                                     photo: photo,
                                     isSelected: selectedPhotoIds.contains(photo.id),
-                                    isSelectionMode: isSelectionMode
+                                    isSelectionMode: isSelectionMode,
+                                    onLongPress: {
+                                        // Nhấn giữ (Long-press) để vào chế độ chọn nhiều
+                                        if !isSelectionMode {
+                                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                                            generator.impactOccurred()
+                                            withAnimation {
+                                                isSelectionMode = true
+                                                selectedPhotoIds.insert(photo.id)
+                                            }
+                                        }
+                                    }
                                 )
                                 .onTapGesture {
                                     if isSelectionMode {
@@ -72,53 +159,108 @@ public struct AlbumDetailView: View {
                         }
                         .padding(.horizontal, 2)
                         .padding(.top, 4)
-                        .padding(.bottom, 60)
+                        .padding(.bottom, isSelectionMode ? 90 : 30)
                     }
                 }
                 
-                // Thanh tác vụ khi ở chế độ Chọn nhiều ảnh (Multi-Select Toolbar)
+                // Thanh tác vụ hàng loạt khi ở chế độ Chọn nhiều ảnh (Batch Actions Toolbar)
                 if isSelectionMode {
-                    HStack {
-                        Button(action: { isMoveSheetPresented = true }) {
-                            HStack {
-                                Image(systemName: "folder")
-                                Text("Chuyển Album")
+                    VStack(spacing: 0) {
+                        Divider()
+                        HStack(spacing: 16) {
+                            // 1. Lưu vào Photos
+                            Button(action: exportSelectedToPhotos) {
+                                VStack(spacing: 3) {
+                                    Image(systemName: "square.and.arrow.down")
+                                        .font(.system(size: 20))
+                                    Text("Lưu Photos")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(selectedPhotoIds.isEmpty ? .secondary : .blue)
                             }
-                            .font(.system(size: 14, weight: .medium))
-                        }
-                        .disabled(selectedPhotoIds.isEmpty)
-                        
-                        Spacer()
-                        
-                        Text("\(selectedPhotoIds.count) đã chọn")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Button(action: deleteSelectedPhotos) {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text("Xóa")
+                            .disabled(selectedPhotoIds.isEmpty)
+                            .frame(maxWidth: .infinity)
+                            
+                            // 2. Nén thành ZIP
+                            Button(action: {
+                                customZipName = "\(album.name)_Backup.zip"
+                                isZipNamePromptPresented = true
+                            }) {
+                                VStack(spacing: 3) {
+                                    Image(systemName: "doc.zipper")
+                                        .font(.system(size: 20))
+                                    Text("Nén ZIP")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(selectedPhotoIds.isEmpty ? .secondary : .purple)
                             }
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(selectedPhotoIds.isEmpty ? .secondary : .red)
+                            .disabled(selectedPhotoIds.isEmpty)
+                            .frame(maxWidth: .infinity)
+                            
+                            // 3. Chuyển Album
+                            Button(action: { isMoveSheetPresented = true }) {
+                                VStack(spacing: 3) {
+                                    Image(systemName: "folder")
+                                        .font(.system(size: 20))
+                                    Text("Chuyển")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(selectedPhotoIds.isEmpty ? .secondary : .blue)
+                            }
+                            .disabled(selectedPhotoIds.isEmpty)
+                            .frame(maxWidth: .infinity)
+                            
+                            // 4. Xóa
+                            Button(action: deleteSelectedPhotos) {
+                                VStack(spacing: 3) {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 20))
+                                    Text("Xóa")
+                                        .font(.system(size: 11))
+                                }
+                                .foregroundColor(selectedPhotoIds.isEmpty ? .secondary : .red)
+                            }
+                            .disabled(selectedPhotoIds.isEmpty)
+                            .frame(maxWidth: .infinity)
                         }
-                        .disabled(selectedPhotoIds.isEmpty)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 10)
+                        .background(Color(UIColor.secondarySystemBackground))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color(UIColor.secondarySystemBackground))
                     .transition(.move(edge: .bottom))
                 }
+            }
+            
+            // Overlay tiến trình nén / xuất
+            if isExportingProgressPresented {
+                ExportProgressSheet(
+                    title: exportProgressTitle,
+                    currentItemText: exportCurrentItemText,
+                    progressValue: exportProgressValue,
+                    onCancel: {
+                        isExportCancelled = true
+                        isExportingProgressPresented = false
+                    }
+                )
             }
         }
         .navigationTitle(album.name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isSelectionMode)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if isSelectionMode {
+                    Button("Hủy") {
+                        withAnimation {
+                            isSelectionMode = false
+                            selectedPhotoIds.removeAll()
+                        }
+                    }
+                }
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 14) {
+                HStack(spacing: 12) {
                     if !albumPhotos.isEmpty {
                         Button(isSelectionMode ? "Xong" : "Chọn") {
                             withAnimation {
@@ -131,18 +273,32 @@ public struct AlbumDetailView: View {
                     }
                     
                     Menu {
-                        Button(action: {
-                            renameText = album.name
-                            isRenameAlertPresented = true
-                        }) {
-                            Label("Đổi Tên Album", systemImage: "pencil")
+                        // Nhóm Export & Backup
+                        Section("Xuất & Sao Lưu") {
+                            Button(action: exportEntireAlbumToZip) {
+                                Label("Export Album to ZIP", systemImage: "archivebox")
+                            }
+                            
+                            Button(action: { isDocumentImporterPresented = true }) {
+                                Label("Khôi Phục Từ File ZIP...", systemImage: "square.and.arrow.down.on.square")
+                            }
                         }
                         
-                        if !album.isDefault {
-                            Button(role: .destructive, action: {
-                                isDeleteConfirmPresented = true
+                        // Nhóm Quản lý Album
+                        Section("Cấu Hình Album") {
+                            Button(action: {
+                                renameText = album.name
+                                isRenameAlertPresented = true
                             }) {
-                                Label("Xóa Album", systemImage: "trash")
+                                Label("Đổi Tên Album", systemImage: "pencil")
+                            }
+                            
+                            if !album.isDefault {
+                                Button(role: .destructive, action: {
+                                    isDeleteConfirmPresented = true
+                                }) {
+                                    Label("Xóa Album", systemImage: "trash")
+                                }
                             }
                         }
                     } label: {
@@ -172,6 +328,29 @@ public struct AlbumDetailView: View {
                 }
             )
         }
+        .sheet(isPresented: $isDocumentExporterPresented) {
+            if let zipURL = generatedZipURL {
+                DocumentExporterView(fileURL: zipURL) {
+                    isDocumentExporterPresented = false
+                }
+            }
+        }
+        .sheet(isPresented: $isDocumentImporterPresented) {
+            DocumentImporterView(
+                onFilePicked: { pickedURL in
+                    isDocumentImporterPresented = false
+                    restoreFromPickedZip(url: pickedURL)
+                },
+                onCancelled: {
+                    isDocumentImporterPresented = false
+                }
+            )
+        }
+        .alert("Đặt Tên File ZIP", isPresented: $isZipNamePromptPresented) {
+            TextField("Tên file sao lưu", text: $customZipName)
+            Button("Bắt Đầu Nén", action: compressSelectedToZip)
+            Button("Hủy", role: .cancel) {}
+        }
         .alert("Đổi Tên Album", isPresented: $isRenameAlertPresented) {
             TextField("Tên mới", text: $renameText)
             Button("Lưu", action: {
@@ -192,7 +371,27 @@ public struct AlbumDetailView: View {
         } message: {
             Text("Bạn có muốn xóa các bức ảnh trong album này hay chỉ xóa thư mục album?")
         }
+        .alert("Xóa Bản Sao Riêng Tư?", isPresented: $isPostExportDeletePromptPresented) {
+            Button("Xóa Khỏi Kho Riêng Tư", role: .destructive) {
+                for item in exportedItemsForCleanup {
+                    photoStorage.deletePhoto(id: item.id, permanent: false)
+                }
+                exportedItemsForCleanup.removeAll()
+            }
+            Button("Giữ Lại Trong Kho", role: .cancel) {
+                exportedItemsForCleanup.removeAll()
+            }
+        } message: {
+            Text("Đã lưu thành công các ảnh/video vào Thư viện Photos iPhone. Bạn có muốn xóa bản sao trong kho riêng tư này không?")
+        }
+        .alert(alertTitle, isPresented: $isGeneralAlertPresented) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertMessage)
+        }
     }
+    
+    // MARK: - Actions Implementation
     
     private func toggleSelection(photoId: UUID) {
         if selectedPhotoIds.contains(photoId) {
@@ -210,6 +409,160 @@ public struct AlbumDetailView: View {
         generator.notificationOccurred(.success)
         isSelectionMode = false
         selectedPhotoIds.removeAll()
+    }
+    
+    /// Xuất các mục đã chọn ra ứng dụng iOS Photos
+    private func exportSelectedToPhotos() {
+        let items = selectedPhotos
+        guard !items.isEmpty else { return }
+        
+        isExportCancelled = false
+        exportProgressTitle = "Đang Lưu Vào Photos..."
+        exportCurrentItemText = "Đang chuẩn bị giải mã..."
+        exportProgressValue = 0.0
+        isExportingProgressPresented = true
+        
+        Task {
+            let result = await exportManager.exportMediaToPhotosLibrary(items: items) { current, total in
+                Task { @MainActor in
+                    self.exportCurrentItemText = "Đang xuất \(current)/\(total)..."
+                    self.exportProgressValue = Double(current) / Double(max(1, total))
+                }
+            }
+            
+            await MainActor.run {
+                self.isExportingProgressPresented = false
+                if result.successCount > 0 {
+                    self.exportedItemsForCleanup = items
+                    self.isPostExportDeletePromptPresented = true
+                } else {
+                    self.alertTitle = "Lỗi Xuất Photos"
+                    self.alertMessage = "Không thể lưu vào Photos. Vui lòng cấp quyền truy cập Thư viện ảnh trong Cài đặt iPhone."
+                    self.isGeneralAlertPresented = true
+                }
+                self.isSelectionMode = false
+                self.selectedPhotoIds.removeAll()
+            }
+        }
+    }
+    
+    /// Nén các mục đã chọn thành file ZIP theo tên người dùng chỉ định
+    private func compressSelectedToZip() {
+        let items = selectedPhotos
+        guard !items.isEmpty else { return }
+        
+        isExportCancelled = false
+        exportProgressTitle = "Đang Nén Thành File ZIP..."
+        exportCurrentItemText = "Bắt đầu tiến trình..."
+        exportProgressValue = 0.0
+        isExportingProgressPresented = true
+        
+        Task {
+            do {
+                let zipURL = try await exportManager.compressItemsToZip(
+                    items: items,
+                    zipFileName: customZipName.isEmpty ? "Backup.zip" : customZipName,
+                    progress: { current, total, filename in
+                        Task { @MainActor in
+                            self.exportCurrentItemText = "Đang nén: \(filename) (\(current)/\(total))"
+                            self.exportProgressValue = Double(current) / Double(max(1, total))
+                        }
+                    },
+                    isCancelled: { self.isExportCancelled }
+                )
+                
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.generatedZipURL = zipURL
+                    // Mở Document Picker để lưu vào On My iPhone hoặc iCloud Drive
+                    self.isDocumentExporterPresented = true
+                    self.isSelectionMode = false
+                    self.selectedPhotoIds.removeAll()
+                }
+            } catch {
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.alertTitle = "Lỗi Nén ZIP"
+                    self.alertMessage = error.localizedDescription
+                    self.isGeneralAlertPresented = true
+                }
+            }
+        }
+    }
+    
+    /// Nén toàn bộ album thành file ZIP kèm manifest.json
+    private func exportEntireAlbumToZip() {
+        isExportCancelled = false
+        exportProgressTitle = "Nén Toàn Bộ Album..."
+        exportCurrentItemText = "Đang đọc cấu trúc album..."
+        exportProgressValue = 0.0
+        isExportingProgressPresented = true
+        
+        Task {
+            do {
+                let zipURL = try await exportManager.compressAlbumToZip(
+                    album: album,
+                    progress: { current, total, filename in
+                        Task { @MainActor in
+                            self.exportCurrentItemText = "Đang nén: \(filename) (\(current)/\(total))"
+                            self.exportProgressValue = Double(current) / Double(max(1, total))
+                        }
+                    },
+                    isCancelled: { self.isExportCancelled }
+                )
+                
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.generatedZipURL = zipURL
+                    self.isDocumentExporterPresented = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.alertTitle = "Lỗi Nén Album"
+                    self.alertMessage = error.localizedDescription
+                    self.isGeneralAlertPresented = true
+                }
+            }
+        }
+    }
+    
+    /// Khôi phục ảnh & video từ file ZIP đã chọn trong Files
+    private func restoreFromPickedZip(url: URL) {
+        isExportCancelled = false
+        exportProgressTitle = "Khôi Phục Dữ Liệu Từ ZIP..."
+        exportCurrentItemText = "Đang giải nén và mã hóa..."
+        exportProgressValue = 0.0
+        isExportingProgressPresented = true
+        
+        Task {
+            do {
+                let count = try await exportManager.restoreBackupFromZip(
+                    zipURL: url,
+                    targetAlbumId: album.id,
+                    progress: { current, total, filename in
+                        Task { @MainActor in
+                            self.exportCurrentItemText = "Đang khôi phục: \(filename) (\(current)/\(total))"
+                            self.exportProgressValue = Double(current) / Double(max(1, total))
+                        }
+                    }
+                )
+                
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.alertTitle = "Khôi Phục Thành Công"
+                    self.alertMessage = "Đã nhập thành công \(count) ảnh & video vào album '\(album.name)'."
+                    self.isGeneralAlertPresented = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isExportingProgressPresented = false
+                    self.alertTitle = "Lỗi Khôi Phục"
+                    self.alertMessage = error.localizedDescription
+                    self.isGeneralAlertPresented = true
+                }
+            }
+        }
     }
 }
 
