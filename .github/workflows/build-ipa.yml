@@ -11,14 +11,13 @@ permissions:
 jobs:
   build:
     name: Build & Release TrollStore IPA
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode Version
+      - name: Show Xcode Version
         run: |
-          sudo xcode-select -s /Applications/Xcode_15.2.app || sudo xcode-select -s /Applications/Xcode_15.0.app || sudo xcode-select -s /Applications/Xcode.app || true
           xcodebuild -version || true
 
       - name: Compile Swift directly to iOS ARM64 Binary
