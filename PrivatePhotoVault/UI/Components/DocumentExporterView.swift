@@ -84,3 +84,21 @@ public struct DocumentImporterView: UIViewControllerRepresentable {
         }
     }
 }
+
+/// UIActivityViewController representable để chia sẻ tệp AirDrop, Tin nhắn, Mail, hoặc Lưu Tệp
+public struct ActivityView: UIViewControllerRepresentable {
+    public let activityItems: [Any]
+    public let applicationActivities: [UIActivity]?
+    
+    public init(activityItems: [Any], applicationActivities: [UIActivity]? = nil) {
+        self.activityItems = activityItems
+        self.applicationActivities = applicationActivities
+    }
+    
+    public func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+    
+    public func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
